@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Product, Language } from '../types';
 import { Flame, Star, ShoppingBag, Eye, Award, CheckCircle, MessageSquare, Plus, Minus } from 'lucide-react';
-import { resolveAsset } from '../assets/images';
+import { resolveAsset, ASSETS } from '../assets/images';
 
 interface ProductCardProps {
   product: Product;
@@ -52,9 +52,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         className="relative h-48 sm:h-56 bg-slate-900 overflow-hidden cursor-pointer group-hover:brightness-105 transition-all"
       >
         <img
-          src={resolveAsset(product.images[0])}
+          src={resolveAsset(product.images?.[0] || (product as any).image || (product as any).imageUrl || ASSETS.pouchPair)}
           alt={product.nameAr}
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = ASSETS.pouchPair;
+          }}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#121217] via-transparent to-transparent opacity-80" />

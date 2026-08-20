@@ -77,10 +77,10 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
             </p>
 
             {/* Clean Direct Buttons Row */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center lg:justify-start gap-2.5 sm:gap-3 pt-2">
               <button
                 onClick={() => onSelectCategory('all')}
-                className="px-6 py-3.5 rounded-xl gold-gradient-bg text-slate-950 font-black text-sm hover:brightness-110 shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 transform hover:-translate-y-0.5 cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-xl gold-gradient-bg text-slate-950 font-black text-sm hover:brightness-110 shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 transform hover:-translate-y-0.5 active:scale-95 cursor-pointer"
               >
                 <Flame className="w-4 h-4 fill-slate-950" />
                 <span>{lang === 'ar' ? 'اطلب فحم الذهب الأسود الملكي' : 'Shop Charcoal Pouches'}</span>
@@ -88,7 +88,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
               <button
                 onClick={() => onSelectCategory('wholesale')}
-                className="px-5 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 font-bold text-sm transition-all flex items-center gap-2 hover:border-amber-400 transform hover:-translate-y-0.5 cursor-pointer"
+                className="w-full sm:w-auto px-5 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 font-bold text-sm transition-all flex items-center justify-center gap-2 hover:border-amber-400 transform hover:-translate-y-0.5 active:scale-95 cursor-pointer"
               >
                 <Store className="w-4 h-4 text-amber-400" />
                 <span>{lang === 'ar' ? 'قسم البقالات والجملة (B2B)' : 'Wholesale & B2B Supply'}</span>
@@ -96,7 +96,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
               <button
                 onClick={onOpenAiAdvisor}
-                className="px-4 py-3.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-3.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                 <span>{lang === 'ar' ? 'مساعد الاختيار الذكي' : 'AI Assistant'}</span>

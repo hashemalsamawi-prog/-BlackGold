@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   ShoppingBag, Search, Sparkles, User, MapPin, Truck, ShieldAlert, 
   Globe, Smartphone, Layers, Flame, Menu, X, ArrowLeftRight, Check, ChevronLeft,
-  Sun, Moon
+  Sun, Moon, MessageSquare
 } from 'lucide-react';
 import { Language, Product, ThemeMode } from '../types';
 import { Logo } from './Logo';
@@ -279,20 +279,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Action Tools & Portals */}
           <div className="flex items-center gap-1.5 sm:gap-2">
             
-            {/* AI Advisor Button */}
+            {/* AI Advisor Button - Tablet & Desktop */}
             <button
               onClick={onOpenAiAdvisor}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all"
+              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all active:scale-95"
               title="مستشار الفحم الذكي"
             >
               <Sparkles className="w-4 h-4 text-amber-400 animate-spin" style={{ animationDuration: '4s' }} />
               <span>{lang === 'ar' ? 'مستشار الذكاء الاصطناعي' : 'AI Advisor'}</span>
             </button>
 
-            {/* Android / Web Toggle */}
+            {/* Android / Web Toggle - Desktop */}
             <button
               onClick={onDeviceModeToggle}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+              className={`hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
                 deviceMode === 'android'
                   ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
                   : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
@@ -305,28 +305,28 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </button>
 
-            {/* Delivery Locations Map */}
+            {/* Delivery Locations Map - Desktop */}
             <button
               onClick={onOpenMap}
-              className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-amber-500/40 transition-all relative group"
+              className="hidden sm:flex p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-amber-500/40 transition-all relative group active:scale-95"
               title="تحديد موقع التوصيل في صنعاء"
             >
               <MapPin className="w-4 h-4 text-amber-400" />
             </button>
 
-            {/* Live Orders Track */}
+            {/* Live Orders Track - Desktop */}
             <button
               onClick={onOpenOrders}
-              className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-amber-500/40 transition-all"
+              className="hidden sm:flex p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-amber-500/40 transition-all active:scale-95"
               title="تتبع الطلبات"
             >
               <Truck className="w-4 h-4 text-amber-400" />
             </button>
 
-            {/* Cart Drawer Button */}
+            {/* Cart Drawer Button - Always Visible & Prominent */}
             <button
               onClick={onOpenCart}
-              className="relative p-2.5 rounded-xl gold-gradient-bg text-slate-950 font-bold hover:brightness-110 transition-all flex items-center gap-1.5 shadow-md shadow-amber-500/10 active:scale-95"
+              className="relative px-3 py-2 rounded-xl gold-gradient-bg text-slate-950 font-bold hover:brightness-110 transition-all flex items-center gap-1.5 shadow-md shadow-amber-500/10 active:scale-95 cursor-pointer"
             >
               <ShoppingBag className="w-4 h-4" />
               <span className="text-xs font-black">
@@ -347,44 +347,37 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title={theme === 'dark' ? 'التبديل إلى الوضع الفاتح (Light Mode)' : 'التبديل إلى الوضع الداكن (Dark Mode)'}
               >
                 {theme === 'dark' ? (
-                  <>
-                    <Sun className="w-4 h-4 text-amber-400" />
-                    <span className="hidden xl:inline text-amber-400">الوضع الفاتح</span>
-                  </>
+                  <Sun className="w-4 h-4 text-amber-400" />
                 ) : (
-                  <>
-                    <Moon className="w-4 h-4 text-indigo-400" />
-                    <span className="hidden xl:inline text-indigo-300">الوضع الداكن</span>
-                  </>
+                  <Moon className="w-4 h-4 text-indigo-400" />
                 )}
               </button>
             )}
 
-            {/* Lang Switcher */}
+            {/* Lang Switcher - Desktop */}
             <button
               onClick={onLanguageToggle}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-bold transition-all flex items-center gap-1"
+              className="hidden md:flex px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-bold transition-all items-center gap-1 active:scale-95"
             >
               <Globe className="w-3.5 h-3.5 text-amber-400" />
               <span>{lang === 'ar' ? 'EN' : 'عربي'}</span>
             </button>
 
-            {/* Owner Control Dashboard Button */}
+            {/* Owner Control Dashboard Button - Desktop */}
             <button
               onClick={onOpenAdmin}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/30 hover:from-amber-500/30 hover:to-amber-600/40 text-amber-300 border border-amber-500/50 text-xs font-black transition-all shadow-sm cursor-pointer active:scale-95"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/30 hover:from-amber-500/30 hover:to-amber-600/40 text-amber-300 border border-amber-500/50 text-xs font-black transition-all shadow-sm cursor-pointer active:scale-95"
               title="لوحة تحكم المالك وتعديل الأسعار والمناديب"
             >
               <ShieldAlert className="w-4 h-4 text-amber-400" />
-              <span className="hidden sm:inline">لوحة المالك</span>
-              <span className="sm:hidden">الإدارة</span>
+              <span>لوحة المالك</span>
               <span className="text-[11px]">👑</span>
             </button>
 
-            {/* User Profile */}
+            {/* User Profile - Desktop */}
             <button
               onClick={onOpenAuth}
-              className="p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-amber-500/40 transition-all flex items-center gap-1.5"
+              className="hidden lg:flex p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-amber-500/40 transition-all items-center gap-1.5 active:scale-95"
               title={timeInfo.greeting}
             >
               <User className="w-4 h-4 text-amber-400" />
@@ -403,7 +396,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Mobile Hamburger */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2.5 rounded-xl bg-slate-900 text-slate-300 lg:hidden"
+              className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 lg:hidden active:scale-95"
+              title="القائمة الإضافية"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -508,48 +502,79 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Mobile Extra Menu Drawer */}
         {mobileMenuOpen && (
-          <div className="lg:hidden py-3 border-t border-slate-800 flex flex-wrap gap-2 text-xs">
+          <div className="lg:hidden py-3 border-t border-slate-800 space-y-2 text-xs animate-in fade-in slide-in-from-top-2 duration-200">
+            
+            {/* Owner Admin Entry */}
             <button
               onClick={() => { onOpenAdmin(); setMobileMenuOpen(false); }}
-              className="w-full py-2.5 px-3 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 font-black flex items-center justify-center gap-2 shadow-sm"
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/30 text-amber-300 border border-amber-500/50 font-black flex items-center justify-between shadow-sm active:scale-98 transition-transform cursor-pointer"
             >
-              <ShieldAlert className="w-4 h-4 text-amber-400" />
-              <span>لوحة تحكم وإدارة المالك 👑</span>
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-400" />
+                <span>لوحة تحكم وإدارة المالك (PIN: 7777)</span>
+              </div>
+              <span className="text-xs bg-amber-500/30 text-amber-300 px-2 py-0.5 rounded-md">👑 دخول</span>
             </button>
 
-            {onToggleTheme && (
+            {/* Quick Actions Grid */}
+            <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => { onToggleTheme(); setMobileMenuOpen(false); }}
-                className="w-full py-2 px-3 rounded-xl bg-slate-900 text-amber-300 border border-amber-500/30 font-bold flex items-center justify-center gap-2"
+                onClick={() => { onOpenAiAdvisor(); setMobileMenuOpen(false); }}
+                className="py-2.5 px-3 rounded-xl bg-slate-900 text-amber-300 border border-slate-800 font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
               >
-                {theme === 'dark' ? (
-                  <>
-                    <Sun className="w-4 h-4 text-amber-400" />
-                    <span>تفعيل الوضع الفاتح (Light Mode) ☀️</span>
-                  </>
-                ) : (
-                  <>
-                    <Moon className="w-4 h-4 text-indigo-400" />
-                    <span>تفعيل الوضع الداكن (Dark Mode) 🌙</span>
-                  </>
-                )}
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>مستشار الذكاء</span>
               </button>
-            )}
 
+              <button
+                onClick={() => { onOpenOrders(); setMobileMenuOpen(false); }}
+                className="py-2.5 px-3 rounded-xl bg-slate-900 text-slate-200 border border-slate-800 font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Truck className="w-4 h-4 text-amber-400" />
+                <span>تتبع الطلبات</span>
+              </button>
+
+              <button
+                onClick={() => { onOpenMap(); setMobileMenuOpen(false); }}
+                className="py-2.5 px-3 rounded-xl bg-slate-900 text-slate-200 border border-slate-800 font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+              >
+                <MapPin className="w-4 h-4 text-amber-400" />
+                <span>مواقع التوصيل</span>
+              </button>
+
+              <button
+                onClick={() => { onLanguageToggle(); setMobileMenuOpen(false); }}
+                className="py-2.5 px-3 rounded-xl bg-slate-900 text-slate-200 border border-slate-800 font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Globe className="w-4 h-4 text-amber-400" />
+                <span>{lang === 'ar' ? 'English (EN)' : 'العربية (AR)'}</span>
+              </button>
+            </div>
+
+            {/* Android Simulator Toggle */}
             <button
-              onClick={() => { onOpenAiAdvisor(); setMobileMenuOpen(false); }}
-              className="flex-1 min-w-[130px] py-2 px-3 rounded-lg bg-slate-900 text-slate-200 border border-slate-800 font-bold flex items-center justify-center gap-1"
+              onClick={() => { onDeviceModeToggle(); setMobileMenuOpen(false); }}
+              className={`w-full py-2 px-3 rounded-xl border font-bold flex items-center justify-center gap-2 active:scale-98 transition-all ${
+                deviceMode === 'android'
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                  : 'bg-slate-900 text-slate-300 border-slate-800'
+              }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>مستشار الذكاء الاصطناعي</span>
+              <Smartphone className="w-4 h-4 text-emerald-400" />
+              <span>{deviceMode === 'android' ? 'إيقاف إطار المحاكي (عرض ملء الشاشة)' : 'محاكي تطبيق أندرويد 📱'}</span>
             </button>
-            <button
-              onClick={() => { onOpenOrders(); setMobileMenuOpen(false); }}
-              className="flex-1 min-w-[130px] py-2 px-3 rounded-lg bg-slate-900 text-slate-200 border border-slate-800 font-bold flex items-center justify-center gap-1"
+
+            {/* Direct WhatsApp Help */}
+            <a
+              href="https://wa.me/967775000150"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-2 px-3 rounded-xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/40 font-bold flex items-center justify-center gap-2 active:scale-98 transition-all"
             >
-              <Truck className="w-3.5 h-3.5 text-amber-400" />
-              <span>تتبع الطلبات</span>
-            </button>
+              <MessageSquare className="w-4 h-4 text-emerald-400" />
+              <span>تواصل مباشر مع خدمة العملاء (واتساب: 775000150)</span>
+            </a>
+
           </div>
         )}
       </div>

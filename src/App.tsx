@@ -68,8 +68,19 @@ export default function App() {
 
   const calculatorRef = useRef<HTMLDivElement>(null);
 
-  // State
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  // State with LocalStorage Persistence for Products
+  const [products, setProducts] = useState<Product[]>(() => {
+    const saved = safeGetLocalStorage('bg_saved_products', '');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.error('Failed to parse bg_saved_products', e);
+      }
+    }
+    return INITIAL_PRODUCTS;
+  });
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   // Address State with localStorage persistence
@@ -124,15 +135,33 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>("مرحباً بك في متجر الذهب الأسود! توصيل فوري داخل صنعاء خلال 45 دقيقة 🔥");
 
   useEffect(() => {
-    // Initial fetch from Express server
+    // Initial fetch from Express server with localStorage fallback & sync
+    const savedLocal = safeGetLocalStorage('bg_saved_products', '');
     fetch('/api/products')
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.data.length > 0) {
+          if (savedLocal) {
+            // If user has local edits, keep local edits but can sync new ones
+            try {
+              const parsed = JSON.parse(savedLocal);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setProducts(parsed);
+                return;
+              }
+            } catch (e) {
+              console.error(e);
+            }
+          }
           setProducts(data.data);
+          safeSetLocalStorage('bg_saved_products', JSON.stringify(data.data));
         }
       })
-      .catch(() => setProducts(INITIAL_PRODUCTS));
+      .catch(() => {
+        if (!savedLocal) {
+          setProducts(INITIAL_PRODUCTS);
+        }
+      });
 
     fetch('/api/orders')
       .then((res) => res.json())
@@ -285,6 +314,13 @@ export default function App() {
   };
 
   const handleAddProduct = async (p: any) => {
+    const mockNew = { id: "p_" + Date.now(), ...p };
+    setProducts((prev) => {
+      const updated = [mockNew, ...prev];
+      safeSetLocalStorage('bg_saved_products', JSON.stringify(updated));
+      return updated;
+    });
+
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
@@ -292,21 +328,30 @@ export default function App() {
         body: JSON.stringify(p)
       });
       const data = await res.json();
-      if (data.success) {
-        setProducts((prev) => [data.data, ...prev]);
+      if (data.success && data.data) {
+        setProducts((prev) => {
+          const updated = prev.map((item) => item.id === mockNew.id ? data.data : item);
+          safeSetLocalStorage('bg_saved_products', JSON.stringify(updated));
+          return updated;
+        });
       }
     } catch {
-      const mockNew = { id: "p_" + Date.now(), ...p };
-      setProducts((prev) => [mockNew, ...prev]);
+      // Local copy already saved in state and localStorage
     }
-    setToastMessage("تم إضافة المنتج الجديد بنجاح إلى القائمة!");
+    setToastMessage("تم إضافة المنتج الجديد وحفظه بنجاح إلى القائمة!");
     setTimeout(() => setToastMessage(null), 4000);
   };
 
   const handleUpdateProduct = async (id: string, updatedPayload: any) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updatedPayload } : p))
-    );
+    setProducts((prev) => {
+      const updated = prev.map((p) => (p.id === id ? { ...p, ...updatedPayload } : p));
+      safeSetLocalStorage('bg_saved_products', JSON.stringify(updated));
+      return updated;
+    });
+
+    // If modal is currently viewing this product, update it in realtime
+    setSelectedProductDetails((prev) => (prev && prev.id === id ? { ...prev, ...updatedPayload } : prev));
+
     try {
       await fetch(`/api/products/${id}`, {
         method: 'PUT',
@@ -316,12 +361,24 @@ export default function App() {
     } catch (e) {
       console.log('Offline fallback for product update', e);
     }
-    setToastMessage("تم تحديث بيانات وصورة المنتج بنجاح! 📸✨");
+    setToastMessage("تم حفظ وتحديث صورة وبيانات المنتج بنجاح! 📸✨");
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  const handleDeleteProduct = (id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+  const handleDeleteProduct = async (id: string) => {
+    setProducts((prev) => {
+      const updated = prev.filter((p) => p.id !== id);
+      safeSetLocalStorage('bg_saved_products', JSON.stringify(updated));
+      return updated;
+    });
+
+    try {
+      await fetch(`/api/products/${id}`, { method: 'DELETE' });
+    } catch {
+      // Offline fallback
+    }
+    setToastMessage("تم حذف المنتج وحفظ التغييرات بنجاح!");
+    setTimeout(() => setToastMessage(null), 4000);
   };
 
   const handleAddReview = async (productId: string, rating: number, comment: string, name: string) => {

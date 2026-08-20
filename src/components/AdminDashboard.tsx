@@ -300,8 +300,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleOpenEditProduct = (prod: Product) => {
     setEditingProdId(prod.id);
     const opt250 = prod.weightOptions?.find(w => w.weight.includes('250'))?.price || prod.price;
-    const opt500 = prod.weightOptions?.find(w => w.weight.includes('500'))?.price || prod.price * 1.8;
-    const opt1kg = prod.weightOptions?.find(w => w.weight.includes('1') || w.weight.includes('كجم'))?.price || prod.price * 3.5;
+    const opt500 = prod.weightOptions?.find(w => w.weight.includes('500'))?.price || Math.round(prod.price * 1.8);
+    const opt1kg = prod.weightOptions?.find(w => w.weight.includes('1') || w.weight.includes('كجم'))?.price || Math.round(prod.price * 3.5);
 
     setProdForm({
       nameAr: prod.nameAr,
@@ -315,8 +315,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       ashPercentage: prod.ashPercentage,
       stock: prod.stock,
       badge: (prod as any).badge || '',
-      imageUrl: prod.images?.[0] || ''
+      imageUrl: prod.images?.[0] || (prod as any).image || (prod as any).imageUrl || ''
     });
+    setUploadStats(null);
     setProductModalOpen(true);
   };
 
@@ -327,6 +328,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       { weight: "عبوة 500 جرام (+15g مجاناً)", price: prodForm.price500 },
       { weight: "عبوة 1 كجم عائلي", price: prodForm.price1kg }
     ];
+
+    const finalImg = prodForm.imageUrl || (editingProdId ? (products.find(p => p.id === editingProdId)?.images?.[0] || '') : '/src/assets/images/black_gold_pouch_pair_1786125935649.jpg');
 
     const payload = {
       nameAr: prodForm.nameAr,
@@ -343,8 +346,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       ashPercentage: prodForm.ashPercentage,
       stock: Number(prodForm.stock),
       badge: prodForm.badge,
-      image: prodForm.imageUrl,
-      images: [prodForm.imageUrl]
+      image: finalImg,
+      images: [finalImg]
     };
 
     if (editingProdId) {

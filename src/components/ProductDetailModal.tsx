@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Language, Review } from '../types';
 import { X, Flame, Star, ShieldCheck, CheckCircle2, ShoppingBag, Send, Upload, Award, ChevronRight } from 'lucide-react';
-import { resolveAsset } from '../assets/images';
+import { resolveAsset, ASSETS } from '../assets/images';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -96,11 +96,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           
           {/* Image & Main Badges */}
           <div className="space-y-4">
-            <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 h-72 sm:h-80">
+            <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 h-64 sm:h-80">
               <img
-                src={resolveAsset(product.images[0])}
+                src={resolveAsset(product.images?.[0] || (product as any).image || (product as any).imageUrl || ASSETS.pouchPair)}
                 alt={product.nameAr}
                 referrerPolicy="no-referrer"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = ASSETS.pouchPair;
+                }}
                 className="w-full h-full object-cover"
               />
               <div className="absolute top-3 right-3 bg-amber-500 text-slate-950 font-black text-xs px-3 py-1 rounded-lg flex items-center gap-1 shadow-lg">
