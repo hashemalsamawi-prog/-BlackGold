@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, ShoppingBag, Truck, MessageSquare, ShieldAlert, Sun, Moon } from 'lucide-react';
+import { Home, ShoppingBag, Truck, MessageSquare, ShieldAlert, Sun, Moon, User } from 'lucide-react';
 import { ThemeMode } from '../types';
 
 interface MobileBottomNavProps {
@@ -8,6 +8,9 @@ interface MobileBottomNavProps {
   onOpenOrders: () => void;
   onScrollToProducts: () => void;
   onOpenAdmin?: () => void;
+  onOpenAuth?: () => void;
+  userName?: string;
+  userRole?: 'customer' | 'owner' | 'mandoub';
   theme?: ThemeMode;
   onToggleTheme?: () => void;
 }
@@ -18,6 +21,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onOpenOrders,
   onScrollToProducts,
   onOpenAdmin,
+  onOpenAuth,
+  userName = '',
+  userRole = 'customer',
   theme = 'dark',
   onToggleTheme
 }) => {
@@ -27,7 +33,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {/* Home */}
       <button
         onClick={onScrollToProducts}
-        className="flex flex-col items-center gap-1 text-slate-400 hover:text-amber-400 active:scale-95 transition-all"
+        className="flex flex-col items-center gap-1 text-slate-400 hover:text-amber-400 active:scale-95 transition-all cursor-pointer"
       >
         <Home className="w-5 h-5" />
         <span className="text-[10px] font-bold">الرئيسية</span>
@@ -36,7 +42,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {/* Cart */}
       <button
         onClick={onOpenCart}
-        className="flex flex-col items-center gap-1 text-amber-400 relative active:scale-95 transition-all"
+        className="flex flex-col items-center gap-1 text-amber-400 relative active:scale-95 transition-all cursor-pointer"
       >
         <div className="relative">
           <ShoppingBag className="w-5 h-5 text-amber-400" />
@@ -49,38 +55,35 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         <span className="text-[10px] font-black">السلة</span>
       </button>
 
+      {/* Customer Account / Sign In */}
+      {onOpenAuth && (
+        <button
+          onClick={onOpenAuth}
+          className={`flex flex-col items-center gap-1 active:scale-95 transition-all cursor-pointer ${
+            userName ? 'text-amber-400 font-black' : 'text-slate-400 hover:text-amber-400 font-bold'
+          }`}
+        >
+          <User className="w-5 h-5" />
+          <span className="text-[10px] truncate max-w-[65px]">
+            {userName ? 'حسابي' : 'زائر / دخول'}
+          </span>
+        </button>
+      )}
+
       {/* Order Tracking */}
       <button
         onClick={onOpenOrders}
-        className="flex flex-col items-center gap-1 text-slate-400 hover:text-amber-400 active:scale-95 transition-all"
+        className="flex flex-col items-center gap-1 text-slate-400 hover:text-amber-400 active:scale-95 transition-all cursor-pointer"
       >
         <Truck className="w-5 h-5" />
         <span className="text-[10px] font-bold">تتبع الطلب</span>
       </button>
 
-      {/* Theme Toggle Button */}
-      {onToggleTheme && (
-        <button
-          onClick={onToggleTheme}
-          className="flex flex-col items-center gap-1 text-amber-300 active:scale-95 transition-all"
-          title={theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
-        >
-          {theme === 'dark' ? (
-            <Sun className="w-5 h-5 text-amber-400" />
-          ) : (
-            <Moon className="w-5 h-5 text-indigo-400" />
-          )}
-          <span className="text-[10px] font-bold">
-            {theme === 'dark' ? 'فاتح ☀️' : 'داكن 🌙'}
-          </span>
-        </button>
-      )}
-
-      {/* Owner Dashboard */}
-      {onOpenAdmin && (
+      {/* Owner Dashboard - Only shown when user is owner */}
+      {userRole === 'owner' && onOpenAdmin && (
         <button
           onClick={onOpenAdmin}
-          className="flex flex-col items-center gap-1 text-amber-300 active:scale-95 transition-all"
+          className="flex flex-col items-center gap-1 text-amber-300 active:scale-95 transition-all cursor-pointer"
         >
           <ShieldAlert className="w-5 h-5 text-amber-400" />
           <span className="text-[10px] font-black text-amber-400">المالك 👑</span>
@@ -92,7 +95,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         href="https://wa.me/967775000150"
         target="_blank"
         rel="noopener noreferrer"
-        className="flex flex-col items-center gap-1 text-emerald-400 active:scale-95 transition-all"
+        className="flex flex-col items-center gap-1 text-emerald-400 active:scale-95 transition-all cursor-pointer"
       >
         <MessageSquare className="w-5 h-5 text-emerald-400" />
         <span className="text-[10px] font-black text-emerald-400">واتساب</span>
@@ -101,4 +104,3 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     </div>
   );
 };
-

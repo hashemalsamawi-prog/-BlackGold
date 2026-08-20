@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ShoppingBag, Search, Sparkles, User, MapPin, Truck, ShieldAlert, 
-  Globe, Smartphone, Layers, Flame, Menu, X, ArrowLeftRight, Check, ChevronLeft,
-  Sun, Moon, MessageSquare
+  Globe, Smartphone, Layers, Flame, Menu, X, Check, ChevronLeft,
+  Sun, Moon, MessageSquare, Home, ChevronDown, Award, Store, Tag
 } from 'lucide-react';
 import { Language, Product, ThemeMode } from '../types';
 import { Logo } from './Logo';
-import { getTimeGreeting } from '../utils/greeting';
 
 interface NavbarProps {
   lang: Language;
@@ -26,6 +25,7 @@ interface NavbarProps {
   activeCategory: string;
   setActiveCategory: (cat: string) => void;
   userName?: string;
+  userRole?: 'customer' | 'owner' | 'mandoub';
   products?: Product[];
   onSelectProduct?: (product: Product) => void;
   storeSettings?: any;
@@ -50,7 +50,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   setSearchQuery,
   activeCategory,
   setActiveCategory,
-  userName,
+  userName = '',
+  userRole = 'customer',
   products = [],
   onSelectProduct,
   storeSettings,
@@ -58,14 +59,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleTheme
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isMobileSearchFocused, setIsMobileSearchFocused] = useState(false);
+  
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const mobileSearchDropdownRef = useRef<HTMLDivElement>(null);
+  const categoriesDropdownRef = useRef<HTMLDivElement>(null);
 
-  const timeInfo = getTimeGreeting(userName, lang);
-
-  // Close search dropdown on click outside
+  // Close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchDropdownRef.current && !searchDropdownRef.current.contains(event.target as Node)) {
@@ -73,6 +75,9 @@ export const Navbar: React.FC<NavbarProps> = ({
       }
       if (mobileSearchDropdownRef.current && !mobileSearchDropdownRef.current.contains(event.target as Node)) {
         setIsMobileSearchFocused(false);
+      }
+      if (categoriesDropdownRef.current && !categoriesDropdownRef.current.contains(event.target as Node)) {
+        setCategoriesDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -108,6 +113,60 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
+  const handleCategorySelect = (categoryId: string) => {
+    setActiveCategory(categoryId);
+    setCategoriesDropdownOpen(false);
+    setMobileMenuOpen(false);
+    if (searchQuery) setSearchQuery('');
+    const el = document.getElementById('products-grid-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const categoriesList = [
+    { 
+      id: 'all', 
+      nameAr: 'جميع المنتجات والعبوات', 
+      nameEn: 'All Products', 
+      icon: '✨', 
+      descAr: 'استعراض كامل تشكيلة الفحم الملكي والبلدي والجملة',
+      badge: 'الكل'
+    },
+    { 
+      id: 'premium', 
+      nameAr: 'الفحم الملكي الفاخر (Zipper)', 
+      nameEn: 'Premium Zipper Line', 
+      icon: '👑', 
+      descAr: 'أكياس محكمة الغلق 250g، 500g، 1kg مع (+10g مجاناً)',
+      badge: 'الأكثر طلباً'
+    },
+    { 
+      id: 'local', 
+      nameAr: 'الفحم البلدي الاقتصادي', 
+      nameEn: 'Standard Local Charcoal', 
+      icon: '🔥', 
+      descAr: 'فحم نباتي طبيعي مغربل ميكانيكياً للاستخدام اليومي',
+      badge: 'اقتصادي'
+    },
+    { 
+      id: 'wholesale', 
+      nameAr: 'قسم الجملة والتوريد (B2B)', 
+      nameEn: 'Wholesale & Stores', 
+      icon: '📦', 
+      descAr: 'صناديق نقاط البيع وتجهيز البقالات وشوالات المطاعم 20kg',
+      badge: 'أسعار خاصة'
+    },
+    { 
+      id: 'bbq', 
+      nameAr: 'مكعبات ومستلزمات الإشعال', 
+      nameEn: 'Ignition Cubes & Tools', 
+      icon: '⚡', 
+      descAr: 'مكعبات إشعال فورية آمنة وبدون روائح تدوم طويلاً',
+      badge: 'سريع'
+    }
+  ];
+
   const quickSearchTags = [
     { label: '👑 فحم فاخر 250g', query: '250g' },
     { label: '👑 فحم فاخر 500g', query: '500g' },
@@ -118,19 +177,32 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#0D0D12]/95 backdrop-blur-md border-b border-slate-200 dark:border-amber-500/20 shadow-sm transition-colors">
-      {/* Top Banner Notice */}
-      <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700 text-slate-950 px-4 py-1.5 text-xs sm:text-sm font-bold text-center flex items-center justify-center gap-2 shadow-sm">
-        <Flame className="w-4 h-4 animate-bounce text-slate-950" />
-        <span>
-          {storeSettings?.topBannerNoticeAr || (lang === 'ar' 
-            ? '🔥 خدمة التوصيل السريع داخل العاصمة صنعاء خلال 45 دقيقة - الدفع عند الاستلام أو عبر حاسب / الكريمي' 
-            : '🔥 Express delivery within Sanaa in 45 mins - Cash on delivery & Bank transfers')}
-        </span>
-        <span className="hidden md:inline bg-black/20 text-black px-2 py-0.5 rounded text-xs font-black">
-          كوبون: {storeSettings?.defaultCouponCode || 'GOLD10'}
-        </span>
+      
+      {/* Top Banner Notice with Live Status */}
+      <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700 text-slate-950 px-4 py-1.5 text-xs sm:text-sm font-bold text-center flex items-center justify-between shadow-sm">
+        <div className="hidden lg:flex items-center gap-2 text-slate-950 font-extrabold text-[11px]">
+          <span className="w-2 h-2 rounded-full bg-emerald-950 animate-ping" />
+          <span>🟢 المتجر متاح للطلب الآن بصنعاء</span>
+        </div>
+
+        <div className="flex items-center justify-center gap-2 mx-auto">
+          <Flame className="w-4 h-4 animate-bounce text-slate-950" />
+          <span>
+            {storeSettings?.topBannerNoticeAr || (lang === 'ar' 
+              ? '🔥 خدمة التوصيل السريع داخل العاصمة صنعاء خلال 45 دقيقة - الدفع عند الاستلام أو عبر حاسب / الكريمي' 
+              : '🔥 Express delivery within Sanaa in 45 mins - Cash on delivery & Bank transfers')}
+          </span>
+          <span className="hidden sm:inline bg-black/20 text-black px-2 py-0.5 rounded text-xs font-black">
+            كوبون: {storeSettings?.defaultCouponCode || 'GOLD10'}
+          </span>
+        </div>
+
+        <div className="hidden lg:flex items-center gap-2 text-slate-950 text-[11px] font-bold">
+          <span>📞 خدمة العملاء: 775000150</span>
+        </div>
       </div>
 
+      {/* Main Header Row */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 gap-2 sm:gap-4">
           
@@ -140,6 +212,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => {
                 setActiveCategory('all');
                 setSearchQuery('');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className="flex items-center gap-3 group text-right focus:outline-none cursor-pointer"
             >
@@ -249,50 +322,47 @@ export const Navbar: React.FC<NavbarProps> = ({
                             </p>
                           </div>
                         </div>
-
                         <div className="text-left shrink-0">
-                          <span className="text-xs font-mono font-black text-amber-400 block">
+                          <span className="font-mono font-black text-amber-400 text-sm block">
                             {prod.price.toLocaleString()} YER
                           </span>
-                          <span className="text-[10px] text-emerald-400 flex items-center gap-0.5 font-bold justify-end mt-0.5 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20 group-hover:bg-emerald-500/20">
-                            <span>عرض وشراء</span>
-                            <ChevronLeft className="w-3 h-3" />
-                          </span>
+                          <span className="text-[10px] text-emerald-400 font-bold">طلب سريع 👈</span>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : searchQuery.trim() ? (
-                  <div className="p-6 text-center text-slate-400 space-y-2">
-                    <p className="text-xs font-bold text-slate-300">
-                      لم يتم العثور على منتجات مطابقة لـ "{searchQuery}"
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      جرب البحث بكلمات مثل "فحم فاخر" أو "250g" أو "بلدي"
-                    </p>
+                  <div className="p-6 text-center text-xs text-slate-400 space-y-2">
+                    <p>لا توجد منتجات مطابقة لـ "{searchQuery}"</p>
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="text-amber-400 underline font-bold"
+                    >
+                      عرض جميع المنتجات
+                    </button>
                   </div>
                 ) : null}
               </div>
             )}
           </div>
 
-          {/* Action Tools & Portals */}
+          {/* Action Tools & Navigation Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2">
             
             {/* AI Advisor Button - Tablet & Desktop */}
             <button
               onClick={onOpenAiAdvisor}
-              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all active:scale-95"
+              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all active:scale-95 cursor-pointer"
               title="مستشار الفحم الذكي"
             >
               <Sparkles className="w-4 h-4 text-amber-400 animate-spin" style={{ animationDuration: '4s' }} />
-              <span>{lang === 'ar' ? 'مستشار الذكاء الاصطناعي' : 'AI Advisor'}</span>
+              <span>{lang === 'ar' ? 'مستشار الذكاء' : 'AI Advisor'}</span>
             </button>
 
             {/* Android / Web Toggle - Desktop */}
             <button
               onClick={onDeviceModeToggle}
-              className={`hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
+              className={`hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all active:scale-95 cursor-pointer ${
                 deviceMode === 'android'
                   ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
                   : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
@@ -308,7 +378,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Delivery Locations Map - Desktop */}
             <button
               onClick={onOpenMap}
-              className="hidden sm:flex p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-amber-500/40 transition-all relative group active:scale-95"
+              className="hidden sm:flex p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-amber-500/40 transition-all relative group active:scale-95 cursor-pointer"
               title="تحديد موقع التوصيل في صنعاء"
             >
               <MapPin className="w-4 h-4 text-amber-400" />
@@ -317,13 +387,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Live Orders Track - Desktop */}
             <button
               onClick={onOpenOrders}
-              className="hidden sm:flex p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-amber-500/40 transition-all active:scale-95"
-              title="تتبع الطلبات"
+              className="hidden sm:flex p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-amber-500/40 transition-all active:scale-95 cursor-pointer"
+              title="تتبع مسار الطلب والمندوب (GPS)"
             >
               <Truck className="w-4 h-4 text-amber-400" />
             </button>
 
-            {/* Cart Drawer Button - Always Visible & Prominent */}
+            {/* Cart Drawer Button */}
             <button
               onClick={onOpenCart}
               className="relative px-3 py-2 rounded-xl gold-gradient-bg text-slate-950 font-bold hover:brightness-110 transition-all flex items-center gap-1.5 shadow-md shadow-amber-500/10 active:scale-95 cursor-pointer"
@@ -339,17 +409,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Dark / Light Mode Toggle */}
+            {/* Theme Mode Toggle (نهاري / ليلي) */}
             {onToggleTheme && (
               <button
                 onClick={onToggleTheme}
-                className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 hover:border-amber-500/40 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm"
-                title={theme === 'dark' ? 'التبديل إلى الوضع الفاتح (Light Mode)' : 'التبديل إلى الوضع الداكن (Dark Mode)'}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 hover:border-amber-500/40 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm cursor-pointer"
+                title={theme === 'dark' ? 'التبديل إلى المظهر النهاري' : 'التبديل إلى المظهر الليلي'}
               >
                 {theme === 'dark' ? (
-                  <Sun className="w-4 h-4 text-amber-400" />
+                  <>
+                    <Sun className="w-4 h-4 text-amber-400" />
+                    <span className="hidden md:inline font-bold">نهاري ☀️</span>
+                  </>
                 ) : (
-                  <Moon className="w-4 h-4 text-indigo-400" />
+                  <>
+                    <Moon className="w-4 h-4 text-indigo-400" />
+                    <span className="hidden md:inline font-bold">ليلي 🌙</span>
+                  </>
                 )}
               </button>
             )}
@@ -357,37 +433,53 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Lang Switcher - Desktop */}
             <button
               onClick={onLanguageToggle}
-              className="hidden md:flex px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-bold transition-all items-center gap-1 active:scale-95"
+              className="hidden md:flex px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-bold transition-all items-center gap-1 active:scale-95 cursor-pointer"
+              title="تغيير اللغة"
             >
               <Globe className="w-3.5 h-3.5 text-amber-400" />
               <span>{lang === 'ar' ? 'EN' : 'عربي'}</span>
             </button>
 
-            {/* Owner Control Dashboard Button - Desktop */}
-            <button
-              onClick={onOpenAdmin}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/30 hover:from-amber-500/30 hover:to-amber-600/40 text-amber-300 border border-amber-500/50 text-xs font-black transition-all shadow-sm cursor-pointer active:scale-95"
-              title="لوحة تحكم المالك وتعديل الأسعار والمناديب"
-            >
-              <ShieldAlert className="w-4 h-4 text-amber-400" />
-              <span>لوحة المالك</span>
-              <span className="text-[11px]">👑</span>
-            </button>
+            {/* Owner Control Dashboard Button */}
+            {userRole === 'owner' && (
+              <button
+                onClick={onOpenAdmin}
+                className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/30 hover:from-amber-500/30 hover:to-amber-600/40 text-amber-300 border border-amber-500/50 text-xs font-black transition-all shadow-sm cursor-pointer active:scale-95"
+                title="لوحة تحكم المالك وتعديل الأسعار والمناديب"
+              >
+                <ShieldAlert className="w-4 h-4 text-amber-400" />
+                <span>لوحة المالك</span>
+                <span className="text-[11px]">👑</span>
+              </button>
+            )}
 
-            {/* User Profile - Desktop */}
+            {/* User Profile / Customer Login & Guest Mode */}
             <button
               onClick={onOpenAuth}
-              className="hidden lg:flex p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-amber-500/40 transition-all items-center gap-1.5 active:scale-95"
-              title={timeInfo.greeting}
+              className={`flex p-2 sm:px-3 sm:py-2 rounded-xl border transition-all items-center gap-1.5 active:scale-95 cursor-pointer ${
+                userName
+                  ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-800 hover:border-amber-500/40'
+                  : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+              }`}
+              title={userName ? `حساب العميل: ${userName}` : 'حساب العميل أو التسوق كزائر'}
             >
               <User className="w-4 h-4 text-amber-400" />
-              {userName && (
-                <div className="text-right hidden xl:block">
+              {userName ? (
+                <div className="text-right hidden sm:block">
                   <span className="text-[10px] text-amber-400/80 block leading-tight font-medium">
-                    {timeInfo.salutation}
+                    حساب العميل
                   </span>
-                  <span className="text-xs font-bold text-amber-300 max-w-[100px] truncate block leading-tight">
+                  <span className="text-xs font-bold text-amber-300 max-w-[110px] truncate block leading-tight">
                     {userName}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-right hidden sm:block">
+                  <span className="text-[10px] text-slate-400 block leading-tight font-medium">
+                    وضع التسوق
+                  </span>
+                  <span className="text-xs font-bold text-amber-300 block leading-tight whitespace-nowrap">
+                    {lang === 'ar' ? 'زائر / دخول' : 'Guest / Sign In'}
                   </span>
                 </div>
               )}
@@ -396,7 +488,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Mobile Hamburger */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 lg:hidden active:scale-95"
+              className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 lg:hidden active:scale-95 cursor-pointer"
               title="القائمة الإضافية"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -504,17 +596,37 @@ export const Navbar: React.FC<NavbarProps> = ({
         {mobileMenuOpen && (
           <div className="lg:hidden py-3 border-t border-slate-800 space-y-2 text-xs animate-in fade-in slide-in-from-top-2 duration-200">
             
-            {/* Owner Admin Entry */}
+            {/* Customer Profile / Sign in / Guest Bar */}
             <button
-              onClick={() => { onOpenAdmin(); setMobileMenuOpen(false); }}
-              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/30 text-amber-300 border border-amber-500/50 font-black flex items-center justify-between shadow-sm active:scale-98 transition-transform cursor-pointer"
+              onClick={() => { onOpenAuth(); setMobileMenuOpen(false); }}
+              className={`w-full py-2.5 px-3 rounded-xl border font-bold flex items-center justify-between shadow-sm active:scale-98 transition-transform cursor-pointer ${
+                userName
+                  ? 'bg-slate-900 text-amber-300 border-amber-500/30'
+                  : 'bg-amber-500/15 text-amber-300 border-amber-500/50'
+              }`}
             >
               <div className="flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-amber-400" />
-                <span>لوحة تحكم وإدارة المالك (PIN: 7777)</span>
+                <User className="w-4 h-4 text-amber-400" />
+                <span>{userName ? `حسابي: ${userName}` : 'حساب العميل أو الدخول كزائر ⚡'}</span>
               </div>
-              <span className="text-xs bg-amber-500/30 text-amber-300 px-2 py-0.5 rounded-md">👑 دخول</span>
+              <span className="text-xs text-amber-400 underline">
+                {userName ? 'إدارة الحساب' : 'اختيار الوضع'}
+              </span>
             </button>
+
+            {/* Owner Admin Entry */}
+            {userRole === 'owner' ? (
+              <button
+                onClick={() => { onOpenAdmin(); setMobileMenuOpen(false); }}
+                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/30 text-amber-300 border border-amber-500/50 font-black flex items-center justify-between shadow-sm active:scale-98 transition-transform cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-amber-400" />
+                  <span>لوحة تحكم وإدارة المالك</span>
+                </div>
+                <span className="text-xs bg-amber-500/30 text-amber-300 px-2 py-0.5 rounded-md">👑 دخول</span>
+              </button>
+            ) : null}
 
             {/* Quick Actions Grid */}
             <div className="grid grid-cols-2 gap-2">
@@ -579,42 +691,133 @@ export const Navbar: React.FC<NavbarProps> = ({
         )}
       </div>
 
-      {/* Categories Sub-nav */}
-      <div className="bg-[#08080A] border-t border-slate-900 shadow-inner">
-        <div className="max-w-7xl mx-auto px-4 flex items-center justify-start overflow-x-auto no-scrollbar py-2.5 gap-2 text-xs font-semibold text-slate-300">
-          {[
-            { id: 'all', nameAr: '✨ جميع الأصناف والعبوات', nameEn: 'All Products', icon: '✨' },
-            { id: 'premium', nameAr: '👑 الخط الفاخر الملكي (Zipper)', nameEn: 'Premium Line', icon: '👑' },
-            { id: 'local', nameAr: '🔥 الخط الشعبي الاقتصادي', nameEn: 'Standard Line', icon: '🔥' },
-            { id: 'wholesale', nameAr: '📦 الجملة، البقالات، والمطاعم', nameEn: 'Wholesale & B2B', icon: '📦' },
-            { id: 'bbq', nameAr: '⚡ مكعبات الإشعال السريع', nameEn: 'Ignition Cubes', icon: '⚡' }
-          ].map((cat) => {
-            const isActive = activeCategory === cat.id;
-            return (
+      {/* Main Categories & Navigation Sub-Bar (تحت الهيدر الرئيسي) */}
+      <div className="bg-[#08080A] dark:bg-[#08080A] border-t border-slate-200 dark:border-slate-900 shadow-inner">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-3 text-xs font-semibold">
+          
+          {/* Right Navigation: Home + Categories Menu + Direct Category Links */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 py-1">
+            
+            {/* 1. الرئيسية (Home) */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveCategory('all');
+                setSearchQuery('');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`whitespace-nowrap px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer font-bold shrink-0 ${
+                activeCategory === 'all' && !searchQuery
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-md shadow-amber-500/20'
+                  : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-amber-300 border border-slate-800'
+              }`}
+              title="الصفحة الرئيسية للمتجر"
+            >
+              <Home className="w-4 h-4" />
+              <span>{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
+            </button>
+
+            {/* 2. تصفح الأقسام (Dropdown Menu) */}
+            <div ref={categoriesDropdownRef} className="relative shrink-0">
               <button
-                key={cat.id}
-                onClick={() => {
-                  setActiveCategory(cat.id);
-                  if (searchQuery) setSearchQuery('');
-                  // Smooth scroll to products section so the customer sees the list update immediately
-                  const el = document.getElementById('products-grid-section');
-                  if (el) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }
-                }}
-                className={`whitespace-nowrap px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
-                  isActive
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-md shadow-amber-500/20'
-                    : 'bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800/80'
+                type="button"
+                onClick={() => setCategoriesDropdownOpen(!categoriesDropdownOpen)}
+                className={`whitespace-nowrap px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer font-bold ${
+                  categoriesDropdownOpen
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
+                    : 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border border-amber-500/30 hover:border-amber-400'
                 }`}
+                title="استعراض قائمة الأقسام والتصنيفات"
               >
-                <span>{cat.icon}</span>
-                <span>{lang === 'ar' ? cat.nameAr : cat.nameEn}</span>
+                <Layers className="w-4 h-4 text-amber-400" />
+                <span>{lang === 'ar' ? 'الأقسام والتصنيفات' : 'Categories'}</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${categoriesDropdownOpen ? 'rotate-180 text-slate-950' : 'text-amber-400'}`} />
               </button>
-            );
-          })}
+
+              {/* Dropdown Menu Panel */}
+              {categoriesDropdownOpen && (
+                <div className="absolute top-full right-0 mt-2 w-72 sm:w-80 bg-[#12121A] border border-amber-500/40 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150 text-right p-2 space-y-1">
+                  <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between text-slate-400 text-[11px] font-bold">
+                    <span>أقسام فحم الذهب الأسود:</span>
+                    <span className="text-amber-400">توصيل فوري ⚡</span>
+                  </div>
+
+                  {categoriesList.map((cat) => {
+                    const isSelected = activeCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => handleCategorySelect(cat.id)}
+                        className={`w-full text-right p-2.5 rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group ${
+                          isSelected 
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
+                            : 'hover:bg-slate-900 text-slate-200 hover:text-white'
+                        }`}
+                      >
+                        <span className="text-lg mt-0.5">{cat.icon}</span>
+                        <div className="flex-1 space-y-0.5">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs group-hover:text-amber-300">
+                              {lang === 'ar' ? cat.nameAr : cat.nameEn}
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-amber-400/90 font-mono">
+                              {cat.badge}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 leading-tight">
+                            {cat.descAr}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 3. Direct Category Quick Pills beside Home & Categories */}
+            {categoriesList.slice(1).map((cat) => {
+              const isActive = activeCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => handleCategorySelect(cat.id)}
+                  className={`whitespace-nowrap px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-md shadow-amber-500/20'
+                      : 'bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800/80'
+                  }`}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{lang === 'ar' ? cat.nameAr.split('(')[0].trim() : cat.nameEn}</span>
+                </button>
+              );
+            })}
+
+            {/* Quick Link to Order Tracker */}
+            <button
+              type="button"
+              onClick={onOpenOrders}
+              className="whitespace-nowrap px-3 py-1.5 rounded-xl bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-amber-300 border border-slate-800/80 transition-all flex items-center gap-1.5 cursor-pointer shrink-0 font-medium"
+              title="تتبع مسار شحنتك"
+            >
+              <Truck className="w-3.5 h-3.5 text-amber-400" />
+              <span>تتبع الطلب (GPS)</span>
+            </button>
+
+          </div>
+
+          {/* Left Side Status Badge (Desktop) */}
+          <div className="hidden xl:flex items-center gap-2 text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-xl shrink-0 font-bold">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>صنعاء: التوصيل مباشر لبابك 🛵</span>
+          </div>
+
         </div>
       </div>
+
     </header>
   );
 };

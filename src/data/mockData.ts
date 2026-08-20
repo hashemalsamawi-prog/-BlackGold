@@ -449,6 +449,79 @@ export const INITIAL_CAMPAIGNS: any[] = [
   }
 ];
 
+export const INITIAL_GALLERY_ITEMS = [
+  {
+    id: 'g1',
+    titleAr: 'عبوات الذهب الأسود الفاخرة (250g و 500g)',
+    titleEn: 'Black Gold Luxury Pouches (250g & 500g)',
+    category: 'pouches' as const,
+    categoryNameAr: 'العبوات والتغليف',
+    categoryNameEn: 'Packaging & Pouches',
+    image: '/src/assets/images/black_gold_pouch_pair_1786125935649.jpg',
+    descriptionAr: 'تغليف أسود فاخر بنظام القفل الحراري المزدوج (Zipper Lock) للحفاظ على جودة الفحم وجفافه التام من الرطوبة.',
+    descriptionEn: 'Double Zipper-Lock moisture-proof matte black pouch bags for optimal charcoal preservation.',
+    badgeAr: 'التصميم الرسمي للعبوات',
+    badgeEn: 'Official Package Design',
+    highlights: ['عبوة 250 جرام خفيفة محكمة', 'عبوة 500 جرام للمجالس', 'طباعة ذهبية بارزة شيك']
+  },
+  {
+    id: 'g2',
+    titleAr: 'تجربة الشيشة الفاخرة بمكعبات الفحم النقية',
+    titleEn: 'Luxury Shisha Session with Pure Cubes',
+    category: 'shisha' as const,
+    categoryNameAr: 'جلسات الشيشة والحرارة',
+    categoryNameEn: 'Shisha & Heat Experience',
+    image: '/src/assets/images/black_gold_shisha_session_1786125947470.jpg',
+    descriptionAr: 'حرارة متوازنة وتوهج أحمر متواصل لأكثر من 5 ساعات بدون طعم أو رائحة تعكر صفو المعسل.',
+    descriptionEn: 'Uniform glow and balanced heat lasting 5+ hours with zero taste or odor alteration.',
+    badgeAr: 'أعلى تقييم من المقاهي',
+    badgeEn: 'Top Lounge Choice',
+    highlights: ['بدون أدخنة أو رائحة', 'رماد أبيض ناعم', 'حرارة متصلة حتى 750 درجة']
+  },
+  {
+    id: 'g3',
+    titleAr: 'منصات وعوارض العرض في منافذ البيع',
+    titleEn: 'Luxury Retail Store Display Stands',
+    category: 'retail' as const,
+    categoryNameAr: 'منافذ البيع والمتاجر',
+    categoryNameEn: 'Retail & Store Displays',
+    image: '/src/assets/images/black_gold_retail_stand_1786125959576.jpg',
+    descriptionAr: 'حوامل عرض مضيئة وشاشات ستاند متطورة تزين كبرى السوبرماركت والمحلات التجارية في أمانة العاصمة صنعاء.',
+    descriptionEn: 'Illuminated golden retail display stands showcased across major supermarkets and stores in Sanaa.',
+    badgeAr: 'متوفر في 120+ نقطة بيع',
+    badgeEn: 'Available in 120+ Stores',
+    highlights: ['رفوف إضاءة ذهبية', 'صندوق حاوية العرض المتنقل', 'تسليم جملة وتجزئة']
+  },
+  {
+    id: 'g4',
+    titleAr: 'أسطول دراجات التوصيل المباشر بصنعاء',
+    titleEn: 'Sanaa Express Motorbike Delivery Fleet',
+    category: 'delivery' as const,
+    categoryNameAr: 'أسطول التوصيل والسائقين',
+    categoryNameEn: 'Delivery Fleet & Drivers',
+    image: '/src/assets/images/black_gold_delivery_fleet_1786125973582.jpg',
+    descriptionAr: 'أسطول دراجات نارية حديث مجهز بصناديق حرارية تحافظ على جودة المنتج وتضمن وصوله خلال 45 دقيقة.',
+    descriptionEn: 'Modern motorcycle delivery fleet equipped with thermal branded boxes for 45-minute Sanaa delivery.',
+    badgeAr: 'توصيل سريع 45 دقيقة',
+    badgeEn: '45-Min Fast Express',
+    highlights: ['تتبع حي مباشر عبر الخريطة', 'صندوق حراري ضد الصدمات', 'مندوبون بدريس موحد']
+  },
+  {
+    id: 'g5',
+    titleAr: 'طقم الهوية البصرية والزي الموحد للشركة',
+    titleEn: 'Official Brand Identity & Merchandise Kit',
+    category: 'merch' as const,
+    categoryNameAr: 'الهوية والتسويق',
+    categoryNameEn: 'Brand & Marketing',
+    image: '/src/assets/images/black_gold_merch_kit_1786125990648.jpg',
+    descriptionAr: 'هوية بصرية متكاملة تشمل سترة المندوب (Vest)، القبعة، التيشيرت الرسمي، تطبيق الهاتف، والشعار الذهبي الثلاثي الأبعاد.',
+    descriptionEn: 'Comprehensive brand identity kit featuring courier uniform, cap, mobile app interface, and 3D gold logo.',
+    badgeAr: 'هوية بصرية فاخرة',
+    badgeEn: 'Luxury Identity',
+    highlights: ['زي موحد معتمد للمندوبين', 'تطبيق أندرويد متكامل', 'تغليف هدايا وترويج']
+  }
+];
+
 export const INITIAL_STORE_SETTINGS = {
   storeNameAr: "فحم الذهب الأسود",
   storeNameEn: "Black Gold Charcoal",

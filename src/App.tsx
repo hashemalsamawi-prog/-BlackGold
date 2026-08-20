@@ -5,7 +5,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Product, CartItem, Order, DeliveryAddress, Review, Language, DeliveryAgent, MarketingCampaign, StoreSettings, ThemeMode } from './types';
-import { INITIAL_PRODUCTS, MOCK_ADDRESSES, INITIAL_DELIVERY_AGENTS, INITIAL_CAMPAIGNS, INITIAL_STORE_SETTINGS } from './data/mockData';
+import { INITIAL_PRODUCTS, MOCK_ADDRESSES, INITIAL_DELIVERY_AGENTS, INITIAL_CAMPAIGNS, INITIAL_STORE_SETTINGS, INITIAL_GALLERY_ITEMS } from './data/mockData';
+import { GalleryItem } from './types';
 
 // Components
 import { Navbar } from './components/Navbar';
@@ -23,7 +24,6 @@ import { AuthModal } from './components/AuthModal';
 import { AndroidSimulatorWrapper } from './components/AndroidSimulatorWrapper';
 import { Logo } from './components/Logo';
 import { MarketingGallery } from './components/MarketingGallery';
-import { LiveSalesTicker } from './components/LiveSalesTicker';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { B2BProfitCalculator } from './components/B2BProfitCalculator';
 import { QualityProtocolSection } from './components/QualityProtocolSection';
@@ -35,7 +35,14 @@ import { Flame, Sparkles, CheckCircle2, ShieldCheck, MapPin, Truck, Phone, Award
 export default function App() {
   const [lang, setLang] = useState<Language>('ar');
   const [deviceMode, setDeviceMode] = useState<'web' | 'android'>('web');
-  const [userName, setUserName] = useState<string>('هاشم السماوي');
+  const [userName, setUserName] = useState<string>(() => {
+    return safeGetLocalStorage('bg_customer_name', '');
+  });
+  const [userRole, setUserRole] = useState<'owner' | 'mandoub' | 'customer'>(() => {
+    const saved = safeGetLocalStorage('bg_user_role', 'customer');
+    if (saved === 'owner' || saved === 'mandoub' || saved === 'customer') return saved;
+    return 'customer';
+  });
 
   // Theme state: 'dark' | 'light'
   const [theme, setTheme] = useState<ThemeMode>(() => {
@@ -82,7 +89,18 @@ export default function App() {
     return INITIAL_PRODUCTS;
   });
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Order[]>(() => {
+    const saved = safeGetLocalStorage('bg_saved_orders', '');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.error('Failed to parse bg_saved_orders', e);
+      }
+    }
+    return [];
+  });
   // Address State with localStorage persistence
   const [addresses, setAddresses] = useState<DeliveryAddress[]>(() => {
     const saved = safeGetLocalStorage('bg_saved_addresses', '');
@@ -106,9 +124,44 @@ export default function App() {
   const [deliveryAgents, setDeliveryAgents] = useState<DeliveryAgent[]>(INITIAL_DELIVERY_AGENTS);
   const [campaigns, setCampaigns] = useState<MarketingCampaign[]>(INITIAL_CAMPAIGNS);
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(INITIAL_STORE_SETTINGS);
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(() => {
+    const saved = safeGetLocalStorage('bg_saved_gallery', '');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.error('Failed to parse bg_saved_gallery', e);
+      }
+    }
+    return INITIAL_GALLERY_ITEMS;
+  });
   const [selectedDriverName, setSelectedDriverName] = useState<string>('أحمد الكبسي');
   const [isOwnerDriverPreview, setIsOwnerDriverPreview] = useState<boolean>(false);
-  const [userRole, setUserRole] = useState<'owner' | 'mandoub' | 'customer'>('owner');
+
+  const handleLoginSuccess = (name: string, phone?: string, role: 'owner' | 'mandoub' | 'customer' = 'customer') => {
+    setUserName(name);
+    setUserRole(role);
+    if (name) safeSetLocalStorage('bg_customer_name', name);
+    if (phone) safeSetLocalStorage('bg_customer_phone', phone);
+    safeSetLocalStorage('bg_user_role', role);
+    if (role === 'owner') {
+      setToastMessage("مرحباً بك يا مدير المتجر! تم تفعيل لوحة الإدارة 👑");
+    } else {
+      setToastMessage(`مرحباً بك ${name}! نتمنى لك تسوقاً ممتعاً 🔥`);
+    }
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleLogout = () => {
+    setUserName('');
+    setUserRole('customer');
+    safeRemoveLocalStorage('bg_customer_name');
+    safeRemoveLocalStorage('bg_customer_phone');
+    safeRemoveLocalStorage('bg_user_role');
+    setToastMessage("تم تسجيل الخروج بنجاح");
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -177,6 +230,29 @@ export default function App() {
       .then((data) => {
         if (data.success) {
           setReviews(data.data);
+        }
+      })
+      .catch(() => {});
+
+    // Fetch gallery items
+    fetch('/api/gallery')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          const savedLocalGal = safeGetLocalStorage('bg_saved_gallery', '');
+          if (savedLocalGal) {
+            try {
+              const parsed = JSON.parse(savedLocalGal);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setGalleryItems(parsed);
+                return;
+              }
+            } catch (e) {
+              console.error(e);
+            }
+          }
+          setGalleryItems(data.data);
+          safeSetLocalStorage('bg_saved_gallery', JSON.stringify(data.data));
         }
       })
       .catch(() => {});
@@ -287,7 +363,11 @@ export default function App() {
   };
 
   const handleOrderPlaced = (newOrder: Order) => {
-    setOrders((prev) => [newOrder, ...prev]);
+    setOrders((prev) => {
+      const updated = [newOrder, ...prev];
+      safeSetLocalStorage('bg_saved_orders', JSON.stringify(updated));
+      return updated;
+    });
     setCart([]);
     playOrderAlertSound(0.85);
     setToastMessage(`🔔 تم وصول وإرسال الطلب ${newOrder.orderNumber} للمندوب في صنعاء بنجاح! 🎉`);
@@ -295,9 +375,11 @@ export default function App() {
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: Order['status'], driverNotes?: string) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status, driverNotes: driverNotes || o.driverNotes } : o))
-    );
+    setOrders((prev) => {
+      const updated = prev.map((o) => (o.id === orderId ? { ...o, status, driverNotes: driverNotes || o.driverNotes } : o));
+      safeSetLocalStorage('bg_saved_orders', JSON.stringify(updated));
+      return updated;
+    });
 
     try {
       await fetch(`/api/orders/${orderId}/status`, {
@@ -378,6 +460,74 @@ export default function App() {
       // Offline fallback
     }
     setToastMessage("تم حذف المنتج وحفظ التغييرات بنجاح!");
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleAddGalleryItem = async (item: Omit<GalleryItem, 'id'>) => {
+    const newItem: GalleryItem = {
+      id: 'g_' + Date.now(),
+      ...item
+    };
+    setGalleryItems(prev => {
+      const updated = [newItem, ...prev];
+      safeSetLocalStorage('bg_saved_gallery', JSON.stringify(updated));
+      return updated;
+    });
+
+    try {
+      const res = await fetch('/api/gallery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newItem)
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setGalleryItems(prev => {
+          const updated = prev.map(it => it.id === newItem.id ? data.data : it);
+          safeSetLocalStorage('bg_saved_gallery', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    } catch (e) {
+      console.log('Gallery local fallback', e);
+    }
+    setToastMessage("تمت إضافة صورة المعرض الجديدة بنجاح! 📸✨");
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleUpdateGalleryItem = async (id: string, updatedPayload: Partial<GalleryItem>) => {
+    setGalleryItems(prev => {
+      const updated = prev.map(item => item.id === id ? { ...item, ...updatedPayload } : item);
+      safeSetLocalStorage('bg_saved_gallery', JSON.stringify(updated));
+      return updated;
+    });
+
+    try {
+      await fetch(`/api/gallery/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedPayload)
+      });
+    } catch (e) {
+      console.log('Gallery update fallback', e);
+    }
+    setToastMessage("تم تعديل وحفظ صورة المعرض بنجاح! 📸✨");
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleDeleteGalleryItem = async (id: string) => {
+    setGalleryItems(prev => {
+      const updated = prev.filter(item => item.id !== id);
+      safeSetLocalStorage('bg_saved_gallery', JSON.stringify(updated));
+      return updated;
+    });
+
+    try {
+      await fetch(`/api/gallery/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      console.log('Gallery delete fallback', e);
+    }
+    setToastMessage("تم حذف الصورة من المعرض بنجاح!");
     setTimeout(() => setToastMessage(null), 4000);
   };
 
@@ -479,6 +629,7 @@ export default function App() {
           activeCategory={activeCategory}
           setActiveCategory={setActiveCategory}
           userName={userName}
+          userRole={userRole}
           products={products}
           onSelectProduct={(p) => setSelectedProductDetails(p)}
           storeSettings={storeSettings}
@@ -752,6 +903,11 @@ export default function App() {
           onClose={() => setOrdersOpen(false)}
           orders={orders}
           lang={lang}
+          userName={userName}
+          onShopNow={() => {
+            setOrdersOpen(false);
+            window.scrollTo({ top: 400, behavior: 'smooth' });
+          }}
         />
 
         <MandoubPortal
@@ -811,16 +967,18 @@ export default function App() {
         <AuthModal
           isOpen={authOpen}
           onClose={() => setAuthOpen(false)}
-          onLoginSuccess={(name) => setUserName(name)}
+          currentUser={userName}
+          userRole={userRole}
+          onLoginSuccess={handleLoginSuccess}
+          onLogout={handleLogout}
           onOpenMandoub={() => {
             setIsOwnerDriverPreview(false);
             setMandoubOpen(true);
           }}
           onOpenAdmin={() => setAdminOpen(true)}
+          onOpenOrders={() => setOrdersOpen(true)}
+          onOpenMap={() => setMapOpen(true)}
         />
-
-        {/* Live Social Proof Ticker */}
-        <LiveSalesTicker />
 
         {/* Sticky Quick-Checkout Floating Bar (Appears when cart has items) */}
         {cart.length > 0 && (
@@ -864,6 +1022,9 @@ export default function App() {
           onOpenCart={() => setCartOpen(true)}
           onOpenOrders={() => setOrdersOpen(true)}
           onOpenAdmin={() => setAdminOpen(true)}
+          onOpenAuth={() => setAuthOpen(true)}
+          userName={userName}
+          userRole={userRole}
           theme={theme}
           onToggleTheme={toggleTheme}
           onScrollToProducts={() => {

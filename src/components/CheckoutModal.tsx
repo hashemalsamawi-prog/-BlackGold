@@ -16,11 +16,16 @@ import {
   ChevronRight, 
   AlertCircle,
   Clock,
-  Sparkles
+  Sparkles,
+  MessageSquare,
+  Copy,
+  Check,
+  PhoneCall,
+  Navigation
 } from 'lucide-react';
 import { Logo } from './Logo';
-import { getTimeGreeting } from '../utils/greeting';
 import { AddressManager } from './AddressManager';
+import { safeGetLocalStorage, safeSetLocalStorage } from '../utils/storage';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -58,19 +63,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onOrderPlaced,
   onOpenTracking
 }) => {
-  const [customerName, setCustomerName] = useState('هاشم السماوي');
-  const [customerPhone, setCustomerPhone] = useState('771234567');
+  const [customerName, setCustomerName] = useState(() => safeGetLocalStorage('bg_customer_name', ''));
+  const [customerPhone, setCustomerPhone] = useState(() => safeGetLocalStorage('bg_customer_phone', ''));
   const [orderNotes, setOrderNotes] = useState(customerNotes || '');
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placedOrderData, setPlacedOrderData] = useState<any>(null);
   const [hasAddressValidationError, setHasAddressValidationError] = useState(false);
+  const [copiedInvoice, setCopiedInvoice] = useState(false);
 
   // Sync initial state when modal opens
   useEffect(() => {
     if (customerNotes) {
       setOrderNotes(customerNotes);
     }
+    const savedName = safeGetLocalStorage('bg_customer_name', '');
+    const savedPhone = safeGetLocalStorage('bg_customer_phone', '');
+    if (savedName && !customerName) setCustomerName(savedName);
+    if (savedPhone && !customerPhone) setCustomerPhone(savedPhone);
     setHasAddressValidationError(false);
   }, [isOpen, customerNotes]);
 
@@ -87,13 +97,44 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   if (!isOpen) return null;
 
-  const customerGreeting = getTimeGreeting(customerName, lang);
-
   const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const total = Math.max(0, subtotal + shippingFee - discount);
 
   // Find currently selected address
   const activeSelectedAddress = addresses.find((a) => a.id === selectedAddressId) || (addresses.length === 1 ? addresses[0] : null);
+
+  const generateWhatsAppUrl = (order: any) => {
+    const isGuest = !safeGetLocalStorage('bg_customer_name', '') || !safeGetLocalStorage('bg_user_role', '');
+    const msg = 
+`*طلب فحم جديد - شركة الذهب الأسود* 👑
+-------------------------------
+*رقم الفاتورة:* ${order.orderNumber}
+*نوع العميل:* ${isGuest ? 'عميل زائر (طلب سريع)' : 'عميل مسجل'}
+*اسم العميل:* ${order.customerName}
+*رقم التواصل:* ${order.customerPhone}
+*الموقع المحفوظ:* ${order.address?.title || 'موقع العميل'}
+*المدينة والمنطقة:* ${order.address?.city || 'صنعاء'} - ${order.address?.district || 'صنعاء'}
+*تفاصيل الشارع:* ${order.address?.street || ''}
+${order.address?.landmark ? `*أقرب معلم بارز:* ${order.address.landmark}\n` : ''}-------------------------------
+*المنتجات المطلوبة:*
+${order.items.map((it: any) => `• ${it.productNameAr} (${it.weight}) × ${it.quantity} = ${(it.unitPrice * it.quantity).toLocaleString()} YER`).join('\n')}
+-------------------------------
+*المجموع الفرعي:* ${order.subtotal?.toLocaleString() || subtotal.toLocaleString()} YER
+*رسوم التوصيل (صنعاء):* ${order.shippingFee?.toLocaleString() || shippingFee.toLocaleString()} YER
+${order.discount ? `*الخصم:* -${order.discount.toLocaleString()} YER\n` : ''}*إجمالي الفاتورة المطلوب:* ${order.total.toLocaleString()} YER
+*وسيلة الدفع:* ${order.paymentMethod === 'cod' ? 'دفع عند الاستلام (كاش)' : 'تحويل بنكي / كريمي (حاسب)'}
+${order.notes ? `*ملاحظات التوصيل:* ${order.notes}\n` : ''}-------------------------------
+يرجى تأكيد التجهيز والتوصيل الفوري لـ صنعاء. شكراً لكم!`;
+
+    return `https://wa.me/967775000150?text=${encodeURIComponent(msg)}`;
+  };
+
+  const handleCopyInvoiceText = (order: any) => {
+    const text = `فاتورة طلب فحم الذهب الأسود (${order.orderNumber})\nالعميل: ${order.customerName}\nالهاتف: ${order.customerPhone}\nالعنوان: ${order.address?.district} - ${order.address?.street}\nالإجمالي: ${order.total.toLocaleString()} ريال يمني\nالمبيعات المباشرة: 775000150`;
+    navigator.clipboard.writeText(text);
+    setCopiedInvoice(true);
+    setTimeout(() => setCopiedInvoice(false), 3000);
+  };
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,7 +142,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     // STRICT VALIDATION: The customer MUST have a valid saved address selected
     if (!activeSelectedAddress) {
       setHasAddressValidationError(true);
-      // Scroll to address area
       return;
     }
 
@@ -111,6 +151,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     setHasAddressValidationError(false);
     setIsSubmitting(true);
+
+    if (customerName.trim()) {
+      safeSetLocalStorage('bg_customer_name', customerName.trim());
+    }
+    if (customerPhone.trim()) {
+      safeSetLocalStorage('bg_customer_phone', customerPhone.trim());
+    }
 
     const fullAddressPayload: DeliveryAddress = {
       id: activeSelectedAddress.id,
@@ -186,14 +233,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto"
       onClick={(e) => {
-        // Tap outside modal backdrop to close/return
         if (e.target === e.currentTarget) {
           onClose();
         }
       }}
     >
       <div 
-        className="bg-[#121218] border border-amber-500/40 rounded-3xl max-w-2xl w-full p-4 sm:p-6 text-slate-100 relative shadow-2xl space-y-5 my-auto max-h-[92vh] overflow-y-auto"
+        className="bg-[#121218] border border-amber-500/40 rounded-3xl max-w-2xl w-full p-4 sm:p-6 text-slate-100 relative shadow-2xl space-y-4 sm:space-y-5 my-auto max-h-[92vh] overflow-y-auto text-right"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -212,7 +258,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             <div className="hidden xs:block">
               <h2 className="text-sm sm:text-base font-black text-white">إتمام طلب الفحم وتأكيد الفاتورة</h2>
-              <p className="text-[10px] text-slate-400">شركة الذهب الأسود - للتوصيل الفوري (صنعاء)</p>
+              <p className="text-[10px] text-slate-400">إرسال مباشر لإدارة المبيعات والتوصيل الفوري (صنعاء)</p>
             </div>
           </div>
 
@@ -231,23 +277,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
         {placedOrderData ? (
           /* Success Screen & Printable Invoice */
-          <div className="py-2 text-center space-y-5">
+          <div className="py-2 text-center space-y-4 sm:space-y-5">
             {/* Invoice Header Brand Badge */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-b from-[#181820] to-[#0D0D12] border border-amber-500/40 shadow-2xl relative overflow-hidden text-right">
-              <div className="flex flex-col items-center justify-center space-y-2 mb-3">
+            <div className="p-4 sm:p-6 rounded-2xl bg-gradient-to-b from-[#181820] to-[#0D0D12] border border-amber-500/40 shadow-2xl relative overflow-hidden text-right">
+              <div className="flex flex-col items-center justify-center space-y-2 mb-2">
                 <Logo variant="full" size="md" />
                 <div className="text-xs text-amber-400 font-bold border-b border-amber-500/20 pb-1 w-full max-w-xs text-center">
                   فاتورة مبيعات معتمدة • الشحن السريع بصنعاء
                 </div>
               </div>
 
-              <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto my-2">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto my-2 animate-bounce">
                 <CheckCircle className="w-7 h-7" />
               </div>
 
               <div className="space-y-1 text-center">
-                <h3 className="text-lg sm:text-xl font-black text-white">تم استلام الطلب وتأكيد الفاتورة! 🎉</h3>
+                <h3 className="text-lg sm:text-xl font-black text-white">تم استلام الطلب بنجاح! 🎉</h3>
                 <p className="text-xs text-amber-300 font-mono font-black">رقم الفاتورة: {placedOrderData.orderNumber}</p>
+                
+                {/* Guaranteed Routing Badge to 775000150 */}
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold mt-1">
+                  <span>تم توجيه طلبك إلى رقم المبيعات المعتمد:</span>
+                  <span className="font-mono text-amber-300 font-black">775000150</span>
+                </div>
               </div>
 
               {/* Printable Invoice Summary Table */}
@@ -264,15 +316,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 <div className="flex justify-between text-slate-300 border-b border-slate-850 pb-1.5">
                   <span className="font-semibold text-slate-400">موقع وعنوان التوصيل المختار:</span>
-                  <span className="font-black text-amber-400">{placedOrderData.address.title} ({placedOrderData.address.district})</span>
+                  <span className="font-black text-amber-400">{placedOrderData.address?.title} ({placedOrderData.address?.district})</span>
                 </div>
 
                 <div className="flex justify-between text-slate-300 border-b border-slate-850 pb-1.5">
                   <span className="font-semibold text-slate-400">الشارع وتفاصيل العنوان:</span>
-                  <span className="font-bold text-slate-200">{placedOrderData.address.street}</span>
+                  <span className="font-bold text-slate-200">{placedOrderData.address?.street}</span>
                 </div>
 
-                {placedOrderData.address.landmark && (
+                {placedOrderData.address?.landmark && (
                   <div className="flex justify-between text-slate-300 border-b border-slate-850 pb-1.5">
                     <span className="font-semibold text-slate-400">أقرب معلم بارز:</span>
                     <span className="font-bold text-amber-300">{placedOrderData.address.landmark}</span>
@@ -282,7 +334,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <div className="my-2 border-t border-slate-800 pt-2">
                   <span className="text-[11px] font-bold text-slate-400 block mb-1.5">المنتجات المطلوبة:</span>
                   <div className="space-y-1.5">
-                    {placedOrderData.items.map((it: any, idx: number) => (
+                    {placedOrderData.items?.map((it: any, idx: number) => (
                       <div key={idx} className="flex justify-between text-slate-200 text-xs bg-slate-900/60 p-2 rounded-lg">
                         <span className="font-semibold">{it.productNameAr} ({it.weight}) × {it.quantity}</span>
                         <span className="font-mono text-amber-400 font-bold">{(it.unitPrice * it.quantity).toLocaleString()} YER</span>
@@ -303,28 +355,45 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+              {/* Action Buttons to ensure 100% dispatch to 775000150 */}
+              <div className="space-y-2.5 pt-4">
                 <a
-                  href={`https://wa.me/967775000150?text=${encodeURIComponent(
-                    `*طلب فحم جديد - شركة الذهب الأسود* 👑\n-------------------------------\n*رقم الفاتورة:* ${placedOrderData.orderNumber}\n*اسم العميل:* ${placedOrderData.customerName}\n*رقم التواصل:* ${placedOrderData.customerPhone}\n*الموقع المحفوظ:* ${placedOrderData.address?.title || 'موقع العميل'}\n*المنطقة بصنعاء:* ${placedOrderData.address?.district || 'صنعاء'}\n*الشارع والعنوان:* ${placedOrderData.address?.street || ''}\n${placedOrderData.address?.landmark ? `*معلم بارز:* ${placedOrderData.address.landmark}\n` : ''}-------------------------------\n*الطلبات:*\n${placedOrderData.items.map((it: any) => `• ${it.productNameAr} (${it.weight}) × ${it.quantity} = ${(it.unitPrice * it.quantity).toLocaleString()} YER`).join('\n')}\n-------------------------------\n*إجمالي الفاتورة:* ${placedOrderData.total.toLocaleString()} YER\n*وسيلة الدفع:* ${placedOrderData.paymentMethod === 'cod' ? 'دفع عند الاستلام (كاش)' : 'تحويل بنكي / كريمي'}\n${placedOrderData.notes ? `*ملاحظات التوصيل:* ${placedOrderData.notes}\n` : ''}-------------------------------\nيرجى تأكيد التوصيل السريع لـ صنعاء. شكراً لكم!`
-                  )}`}
+                  href={generateWhatsAppUrl(placedOrderData)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
+                  className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-600/30 transition-all cursor-pointer active:scale-98 animate-pulse hover:animate-none"
                 >
-                  <Phone className="w-4 h-4 fill-current" />
-                  إرسال الطلب عبر الواتساب (WhatsApp) 💬
+                  <MessageSquare className="w-5 h-5 fill-current" />
+                  <span>إرسال وتأكيد الفاتورة فوراً عبر واتساب المبيعات (775000150) 💬</span>
                 </a>
 
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-2 cursor-pointer"
-                >
-                  <Printer className="w-4 h-4 text-amber-400" />
-                  طباعة الفاتورة 📄
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <a
+                    href="tel:775000150"
+                    className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 hover:border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <PhoneCall className="w-3.5 h-3.5" />
+                    <span>اتصال: 775000150</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCopyInvoiceText(placedOrderData)}
+                    className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    {copiedInvoice ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                    <span>{copiedInvoice ? 'تم نسخ الفاتورة!' : 'نسخ تفاصيل الفاتورة'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-amber-400" />
+                    <span>طباعة الفاتورة 📄</span>
+                  </button>
+                </div>
               </div>
 
               {/* Live Tracking Link */}
@@ -346,29 +415,33 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           /* Order Form with Forced Saved Location Selection & Manual Addition */
           <form onSubmit={handleSubmitOrder} className="space-y-4">
             
-            {/* Friendly Personalized Greeting Banner */}
-            <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/15 via-slate-900 to-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs">
+            {/* Professional Order Header Banner */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-slate-900 to-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2.5">
-                <span className="text-lg">{customerGreeting.icon}</span>
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0">
+                  <Sparkles className="w-4 h-4" />
+                </div>
                 <div>
-                  <span className="font-black text-amber-300 block">{customerGreeting.greeting}</span>
-                  <span className="text-[11px] text-slate-400">توصيل سريع لفحم الذهب الأسود لباب منزلك بصنعاء</span>
+                  <span className="font-black text-white block text-xs sm:text-sm">بيانات التوصيل والفاتورة المباشرة</span>
+                  <span className="text-[11px] text-slate-300">توصيل سريع لباب منزلك أو محلك بصنعاء • خدمة المبيعات: 775000150</span>
                 </div>
               </div>
-              <span className="font-mono text-amber-400/80 text-[11px] font-bold hidden sm:inline">{customerGreeting.formattedTime}</span>
+              <span className="font-mono text-amber-400 font-bold bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-[11px] hidden sm:inline">
+                صنعاء ⚡
+              </span>
             </div>
 
-            {/* Customer Details Inputs */}
+            {/* Customer Details Inputs (Seamless for both registered & guests) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div>
                 <label className="block text-slate-300 font-bold mb-1">
-                  اسم العميل الثلاثي: <span className="text-amber-400">*</span>
+                  اسم العميل أو الزائر: <span className="text-amber-400">*</span>
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     required
-                    placeholder="مثال: هاشم السماوي"
+                    placeholder="مثال: أحمد الشامي أو زائر صنعاء"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 text-white p-2.5 rounded-xl outline-none focus:border-amber-500 pr-9 text-xs font-bold"
@@ -480,7 +553,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   disabled={isSubmitting}
                   className="px-5 sm:px-6 py-3 rounded-xl gold-gradient-bg text-slate-950 font-black text-xs sm:text-sm hover:brightness-110 transition-all flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer"
                 >
-                  {isSubmitting ? 'جاري التأكيد...' : 'تأكيد وإرسال الطلب للمندوب ⚡'}
+                  {isSubmitting ? 'جاري التأكيد...' : 'تأكيد وإرسال الطلب (775000150) ⚡'}
                 </button>
               </div>
             </div>

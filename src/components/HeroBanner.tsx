@@ -1,8 +1,7 @@
 import React from 'react';
-import { Flame, ShieldCheck, Truck, Clock, Sparkles, Award, Store, Calculator } from 'lucide-react';
+import { Flame, ShieldCheck, Truck, Clock, Sparkles, Award, Store, Calculator, CheckCircle2 } from 'lucide-react';
 import { Language } from '../types';
 import { ASSETS } from '../assets/images';
-import { getTimeGreeting } from '../utils/greeting';
 
 interface HeroBannerProps {
   lang: Language;
@@ -16,10 +15,8 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   lang,
   onOpenAiAdvisor,
   onSelectCategory,
-  userName = 'هاشم السماوي'
+  userName = ''
 }) => {
-  const timeInfo = getTimeGreeting(userName, lang);
-
   return (
     <div className="relative overflow-hidden bg-gradient-to-b from-[#0F0F14] via-[#0A0A0C] to-[#0A0A0C] py-10 lg:py-14 border-b border-amber-500/10">
       
@@ -33,18 +30,16 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
           {/* Text Content */}
           <div className="lg:col-span-7 space-y-5 text-center lg:text-right">
             
-            {/* Tagline Badges & Personalized Customer Greeting */}
+            {/* Value Trust Badges */}
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
               
-              {/* Personalized Customer Greeting Pill */}
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-black shadow-md">
-                <span className="text-sm">{timeInfo.icon}</span>
-                <span>{timeInfo.greeting}</span>
-                <span className="text-amber-400/60 font-mono text-[10px] hidden sm:inline">({timeInfo.formattedTime})</span>
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-black shadow-sm">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>المتجر الرسمي المعتمد • صنعاء</span>
               </div>
 
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-extrabold shadow-inner">
-                <Award className="w-4 h-4 text-amber-400 animate-pulse" />
+                <Award className="w-4 h-4 text-amber-400" />
                 <span>
                   {lang === 'ar' ? 'الذهب الأسود | الفحم النباتي الأجود في اليمن' : 'Black Gold - Yemen Premium Charcoal'}
                 </span>

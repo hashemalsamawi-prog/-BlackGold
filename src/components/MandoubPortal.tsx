@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { playOrderAlertSound } from '../utils/soundAlert';
-import { getMandoubGreeting, getTimeGreeting } from '../utils/greeting';
 
 interface MandoubPortalProps {
   isOpen: boolean;
@@ -76,9 +75,6 @@ export const MandoubPortal: React.FC<MandoubPortalProps> = ({
     isOnline: true,
     vehiclePlate: 'صنعاء - 14920 د'
   };
-
-  const driverGreeting = getMandoubGreeting(currentDriver, lang);
-  const timeInfo = getTimeGreeting(currentDriver, lang);
 
   const prevMandoubOrdersRef = useRef(orders.length);
 
@@ -213,7 +209,7 @@ export const MandoubPortal: React.FC<MandoubPortalProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-amber-300 font-bold mt-0.5">
-                {driverGreeting} • {timeInfo.greeting}
+                الكابتن: {currentDriver} • نطاق التوزيع المباشر: أمانة العاصمة صنعاء
               </p>
             </div>
           </div>

@@ -564,17 +564,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <button
                 onClick={onToggleTheme}
                 className="p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 hover:border-amber-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-sm"
-                title={theme === 'dark' ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الداكن'}
+                title={theme === 'dark' ? 'التبديل إلى المظهر النهاري' : 'التبديل إلى المظهر الليلي'}
               >
                 {theme === 'dark' ? (
                   <>
                     <Sun className="w-4 h-4 text-amber-400" />
-                    <span className="hidden sm:inline">الوضع الفاتح</span>
+                    <span className="hidden sm:inline">نهاري ☀️</span>
                   </>
                 ) : (
                   <>
                     <Moon className="w-4 h-4 text-indigo-400" />
-                    <span className="hidden sm:inline">الوضع الداكن</span>
+                    <span className="hidden sm:inline">ليلي 🌙</span>
                   </>
                 )}
               </button>

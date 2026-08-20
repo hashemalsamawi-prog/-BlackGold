@@ -165,6 +165,21 @@ export interface DistrictDeliveryConfig {
   isActive: boolean;
 }
 
+export interface GalleryItem {
+  id: string;
+  titleAr: string;
+  titleEn: string;
+  category: 'pouches' | 'shisha' | 'retail' | 'delivery' | 'merch';
+  categoryNameAr: string;
+  categoryNameEn: string;
+  image: string;
+  descriptionAr: string;
+  descriptionEn: string;
+  badgeAr: string;
+  badgeEn: string;
+  highlights: string[];
+}
+
 export interface StoreSettings {
   storeNameAr: string;
   storeNameEn: string;
