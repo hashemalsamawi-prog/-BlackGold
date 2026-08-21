@@ -20,7 +20,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const [selectedWeightIndex, setSelectedWeightIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
-  const currentWeightOpt = product.weightOptions[selectedWeightIndex] || product.weightOptions[0];
+  const currentWeightOpt = (product.weightOptions && product.weightOptions[selectedWeightIndex]) || 
+    (product.weightOptions && product.weightOptions[0]) || 
+    { weight: product.weight || '1kg', price: product.price };
   const currentPrice = currentWeightOpt ? currentWeightOpt.price : product.price;
   const totalPrice = currentPrice * quantity;
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CartItem, Language, DeliveryAddress } from '../types';
 import { X, Trash2, ShoppingBag, MapPin, Tag, ArrowLeft, ArrowRight, MessageSquare, AlertCircle, ChevronRight, CheckCircle2, Plus } from 'lucide-react';
-import { resolveAsset } from '../assets/images';
+import { resolveAsset, ASSETS } from '../assets/images';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -172,8 +172,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all flex items-center gap-3 shadow-sm"
                 >
                   <img
-                    src={resolveAsset(item.product.images[0])}
-                    alt={item.product.nameAr}
+                    src={resolveAsset(item.product?.images?.[0] || (item.product as any)?.image || ASSETS.pouchPair)}
+                    alt={item.product?.nameAr || 'منتج فحم الذهب الأسود'}
                     referrerPolicy="no-referrer"
                     className="w-16 h-16 object-cover rounded-xl bg-slate-950 shrink-0 border border-slate-800"
                   />

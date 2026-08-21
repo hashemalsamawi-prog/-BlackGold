@@ -42,7 +42,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   if (!product) return null;
 
-  const currentOpt = product.weightOptions[selectedWeightIdx] || product.weightOptions[0];
+  const currentOpt = (product.weightOptions && product.weightOptions[selectedWeightIdx]) || 
+    (product.weightOptions && product.weightOptions[0]) || 
+    { weight: product.weight || '1kg', price: product.price };
   const unitPrice = currentOpt ? currentOpt.price : product.price;
 
   const productReviews = reviews.filter((r) => r.productId === product.id);
@@ -147,27 +149,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </p>
 
               {/* Weight Selector */}
-              <div className="mt-5 space-y-2">
-                <label className="text-xs font-bold text-slate-300 block">
-                  اختر الحجم / العبوة المناسبة:
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {product.weightOptions.map((opt, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedWeightIdx(idx)}
-                      className={`p-3 rounded-xl border text-right transition-all flex items-center justify-between ${
-                        selectedWeightIdx === idx
-                          ? 'bg-amber-500/20 border-amber-500 text-white font-black shadow-md'
-                          : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:border-slate-700'
-                      }`}
-                    >
-                      <span className="text-xs font-bold">{opt.weight}</span>
-                      <span className="text-xs font-black text-amber-400">{opt.price.toLocaleString()} YER</span>
-                    </button>
-                  ))}
+              {product.weightOptions && product.weightOptions.length > 0 && (
+                <div className="mt-5 space-y-2">
+                  <label className="text-xs font-bold text-slate-300 block">
+                    اختر الحجم / العبوة المناسبة:
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {product.weightOptions.map((opt, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedWeightIdx(idx)}
+                        className={`p-3 rounded-xl border text-right transition-all flex items-center justify-between ${
+                          selectedWeightIdx === idx
+                            ? 'bg-amber-500/20 border-amber-500 text-white font-black shadow-md'
+                            : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:border-slate-700'
+                        }`}
+                      >
+                        <span className="text-xs font-bold">{opt.weight}</span>
+                        <span className="text-xs font-black text-amber-400">{opt.price.toLocaleString()} YER</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Quantity Controls & Quick Bulk Presets */}
               <div className="mt-5 space-y-2">

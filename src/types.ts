@@ -1,5 +1,6 @@
 export type Language = 'ar' | 'en';
 export type ThemeMode = 'dark' | 'light';
+export type ProductSortOption = 'popular' | 'newest' | 'price-asc' | 'price-desc' | 'rating';
 
 export interface WeightOption {
   weight: string;

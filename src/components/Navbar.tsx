@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   ShoppingBag, Search, Sparkles, User, MapPin, Truck, ShieldAlert, 
   Globe, Smartphone, Layers, Flame, Menu, X, Check, ChevronLeft,
-  Sun, Moon, MessageSquare, Home, ChevronDown, Award, Store, Tag
+  Sun, Moon, MessageSquare, Home, ChevronDown, Award, Store, Tag,
+  SlidersHorizontal, ArrowUpDown, Filter, RotateCcw, TrendingUp, Sparkle
 } from 'lucide-react';
-import { Language, Product, ThemeMode } from '../types';
+import { Language, Product, ThemeMode, ProductSortOption } from '../types';
 import { Logo } from './Logo';
 
 interface NavbarProps {
@@ -24,6 +25,13 @@ interface NavbarProps {
   setSearchQuery: (q: string) => void;
   activeCategory: string;
   setActiveCategory: (cat: string) => void;
+  minPrice?: number | '';
+  setMinPrice?: (val: number | '') => void;
+  maxPrice?: number | '';
+  setMaxPrice?: (val: number | '') => void;
+  sortBy?: ProductSortOption;
+  setSortBy?: (sort: ProductSortOption) => void;
+  onResetFilters?: () => void;
   userName?: string;
   userRole?: 'customer' | 'owner' | 'mandoub';
   products?: Product[];
@@ -50,6 +58,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   setSearchQuery,
   activeCategory,
   setActiveCategory,
+  minPrice = '',
+  setMinPrice,
+  maxPrice = '',
+  setMaxPrice,
+  sortBy = 'popular',
+  setSortBy,
+  onResetFilters,
   userName = '',
   userRole = 'customer',
   products = [],
@@ -62,16 +77,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isMobileSearchFocused, setIsMobileSearchFocused] = useState(false);
+  const [showPriceFilterPanel, setShowPriceFilterPanel] = useState(false);
   
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const mobileSearchDropdownRef = useRef<HTMLDivElement>(null);
   const categoriesDropdownRef = useRef<HTMLDivElement>(null);
+
+  const isPriceFilterActive = (minPrice !== '' && minPrice !== undefined) || (maxPrice !== '' && maxPrice !== undefined);
+  const isSortActive = sortBy !== 'popular';
+  const activeFiltersCount = (isPriceFilterActive ? 1 : 0) + (isSortActive ? 1 : 0) + (searchQuery.trim() ? 1 : 0);
 
   // Close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchDropdownRef.current && !searchDropdownRef.current.contains(event.target as Node)) {
         setIsSearchFocused(false);
+        setShowPriceFilterPanel(false);
       }
       if (mobileSearchDropdownRef.current && !mobileSearchDropdownRef.current.contains(event.target as Node)) {
         setIsMobileSearchFocused(false);
@@ -84,24 +105,47 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filter products based on search query
-  const matchingProducts = searchQuery.trim()
-    ? products.filter(p => {
-        const q = searchQuery.toLowerCase().trim();
-        return (
-          p.nameAr.toLowerCase().includes(q) ||
-          p.nameEn.toLowerCase().includes(q) ||
-          p.descriptionAr.toLowerCase().includes(q) ||
-          p.descriptionEn.toLowerCase().includes(q) ||
-          (p.features && p.features.some(f => f.toLowerCase().includes(q))) ||
-          (p.weightOptions && p.weightOptions.some(w => w.weight.toLowerCase().includes(q)))
-        );
-      })
-    : [];
+  // Filter products based on search query, price range, and sorting
+  const matchingProducts = products
+    .filter(p => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesText = !q || (
+        p.nameAr.toLowerCase().includes(q) ||
+        p.nameEn.toLowerCase().includes(q) ||
+        p.descriptionAr.toLowerCase().includes(q) ||
+        p.descriptionEn.toLowerCase().includes(q) ||
+        (p.features && p.features.some(f => f.toLowerCase().includes(q))) ||
+        (p.weightOptions && p.weightOptions.some(w => w.weight.toLowerCase().includes(q)))
+      );
+      const matchesMin = minPrice === '' || minPrice === undefined || p.price >= Number(minPrice);
+      const matchesMax = maxPrice === '' || maxPrice === undefined || p.price <= Number(maxPrice);
+      return matchesText && matchesMin && matchesMax;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'popular') {
+        if (a.isBestSeller && !b.isBestSeller) return -1;
+        if (!a.isBestSeller && b.isBestSeller) return 1;
+        return (b.reviewCount || 0) - (a.reviewCount || 0);
+      }
+      if (sortBy === 'newest') {
+        return b.id.localeCompare(a.id);
+      }
+      if (sortBy === 'price-asc') {
+        return a.price - b.price;
+      }
+      if (sortBy === 'price-desc') {
+        return b.price - a.price;
+      }
+      if (sortBy === 'rating') {
+        return (b.rating || 0) - (a.rating || 0) || (b.reviewCount || 0) - (a.reviewCount || 0);
+      }
+      return 0;
+    });
 
   const handleProductClick = (product: Product) => {
     setIsSearchFocused(false);
     setIsMobileSearchFocused(false);
+    setShowPriceFilterPanel(false);
     if (onSelectProduct) {
       onSelectProduct(product);
     }
@@ -111,6 +155,19 @@ export const Navbar: React.FC<NavbarProps> = ({
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  };
+
+  const handlePricePreset = (min: number | '', max: number | '') => {
+    if (setMinPrice) setMinPrice(min);
+    if (setMaxPrice) setMaxPrice(max);
+  };
+
+  const handleReset = () => {
+    if (setSearchQuery) setSearchQuery('');
+    if (setMinPrice) setMinPrice('');
+    if (setMaxPrice) setMaxPrice('');
+    if (setSortBy) setSortBy('popular');
+    if (onResetFilters) onResetFilters();
   };
 
   const handleCategorySelect = (categoryId: string) => {
@@ -225,54 +282,238 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
 
-          {/* Search Bar with Interactive Dropdown - Desktop */}
-          <div ref={searchDropdownRef} className="hidden lg:flex flex-1 max-w-md relative">
-            <input
-              type="text"
-              value={searchQuery}
-              onFocus={() => setIsSearchFocused(true)}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setIsSearchFocused(true);
-              }}
-              placeholder={lang === 'ar' ? 'ابحث عن فحم بلدي، عبوة 250جم، 500جم، فحم فاخر...' : 'Search local charcoal, 250g, 500g, premium...'}
-              className="w-full bg-slate-100 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 text-xs sm:text-sm rounded-xl py-2.5 px-10 border border-slate-300 dark:border-slate-800 focus:border-amber-500/80 focus:ring-2 focus:ring-amber-500/20 transition-all outline-none"
-            />
-            <Search className="w-4 h-4 text-amber-400 absolute right-3.5 top-3 pointer-events-none" />
-            
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute left-3 top-2.5 text-xs text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-800"
-                title="مسح البحث"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+          {/* Search Bar with Interactive Dropdown & Price Filter & Sorting - Desktop */}
+          <div ref={searchDropdownRef} className="hidden lg:flex flex-1 max-w-lg relative">
+            <div className="w-full flex items-center relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onFocus={() => setIsSearchFocused(true)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsSearchFocused(true);
+                }}
+                placeholder={lang === 'ar' ? 'ابحث عن فحم بلدي، عبوة 250جم، 500جم، فحم فاخر...' : 'Search local charcoal, 250g, 500g, premium...'}
+                className="w-full bg-slate-100 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 text-xs sm:text-sm rounded-xl py-2.5 pr-10 pl-24 border border-slate-300 dark:border-slate-800 focus:border-amber-500/80 focus:ring-2 focus:ring-amber-500/20 transition-all outline-none"
+              />
+              <Search className="w-4 h-4 text-amber-400 absolute right-3.5 pointer-events-none" />
+              
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute left-20 text-xs text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-800"
+                  title="مسح البحث"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
 
-            {/* Desktop Search Dropdown */}
+              {/* Filter & Sort Toggle Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSearchFocused(true);
+                  setShowPriceFilterPanel(!showPriceFilterPanel);
+                }}
+                className={`absolute left-1.5 top-1.5 bottom-1.5 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  activeFiltersCount > 0
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                }`}
+                title="تصفية نطاق السعر وترتيب المنتجات"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>{lang === 'ar' ? 'تصفية' : 'Filter'}</span>
+                {activeFiltersCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-slate-950 text-amber-400 text-[10px] flex items-center justify-center font-black">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Desktop Search & Filter Dropdown */}
             {isSearchFocused && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-[#12121A] border border-amber-500/40 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150 text-right">
                 
-                {/* Header info */}
-                <div className="px-4 py-2.5 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                    <Search className="w-3.5 h-3.5 text-amber-400" />
-                    {searchQuery.trim() ? (
-                      <span>نتائج البحث ({matchingProducts.length})</span>
-                    ) : (
-                      <span>الأكثر طلباً وبحثاً بصنعاء</span>
+                {/* Header info & active filters summary */}
+                <div className="px-4 py-2.5 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                      <Filter className="w-3.5 h-3.5 text-amber-400" />
+                      <span>نتائج التصفية ({matchingProducts.length})</span>
+                    </span>
+                    {sortBy === 'popular' && (
+                      <span className="text-[10px] text-amber-400/90 font-medium">🔥 الأكثر طلباً</span>
                     )}
-                  </span>
-                  {searchQuery.trim() && (
-                    <span className="text-[11px] text-amber-400/80">اضغط للدخول المباشر للمنتج</span>
-                  )}
+                    {sortBy === 'newest' && (
+                      <span className="text-[10px] text-blue-400 font-medium">🆕 الأحدث وصولاً</span>
+                    )}
+                    {sortBy === 'price-asc' && (
+                      <span className="text-[10px] text-emerald-400 font-medium">📈 الأقل سعراً</span>
+                    )}
+                    {sortBy === 'price-desc' && (
+                      <span className="text-[10px] text-purple-400 font-medium">📉 الأعلى سعراً</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {activeFiltersCount > 0 && (
+                      <button
+                        onClick={handleReset}
+                        className="text-[11px] text-rose-400 hover:text-rose-300 flex items-center gap-1 hover:underline font-bold"
+                        title="إلغاء جميع الفلاتر"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>إلغاء التصفية</span>
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => setIsSearchFocused(false)} 
+                      className="text-slate-400 hover:text-white text-[11px] p-1"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Quick Suggestion Pills if query is empty or short */}
-                {(!searchQuery.trim() || matchingProducts.length === 0) && (
-                  <div className="p-3 border-b border-slate-800/80 bg-slate-900/40">
-                    <p className="text-[11px] text-slate-400 mb-2 font-medium">بحث سريع ومباشر:</p>
+                {/* Filter Control Section: Sorting & Price Range */}
+                <div className="p-3.5 bg-slate-900/60 border-b border-slate-800/80 space-y-3">
+                  {/* Sorting Options */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
+                        <ArrowUpDown className="w-3 h-3 text-amber-400" />
+                        <span>ترتيب المنتجات:</span>
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                      {[
+                        { id: 'popular', label: '🔥 الأكثر طلباً' },
+                        { id: 'newest', label: '🆕 الأحدث وصولاً' },
+                        { id: 'price-asc', label: '📈 الأقل سعراً' },
+                        { id: 'price-desc', label: '📉 الأعلى سعراً' },
+                        { id: 'rating', label: '⭐ الأعلى تقييماً' },
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setSortBy && setSortBy(item.id as ProductSortOption)}
+                          className={`px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all text-center border truncate cursor-pointer ${
+                            sortBy === item.id
+                              ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                              : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border-slate-700/60 hover:border-amber-500/30'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Price Range Filter */}
+                  <div className="space-y-2 pt-1 border-t border-slate-800/60">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
+                        <span>💰 نطاق السعر (ريال يمني YER):</span>
+                      </span>
+                      {isPriceFilterActive && (
+                        <button
+                          onClick={() => {
+                            if (setMinPrice) setMinPrice('');
+                            if (setMaxPrice) setMaxPrice('');
+                          }}
+                          className="text-[10px] text-amber-400 hover:underline"
+                        >
+                          مسح نطاق السعر
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Quick Preset Buttons */}
+                    <div className="flex flex-wrap gap-1">
+                      <button
+                        onClick={() => handlePricePreset('', '')}
+                        className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all border ${
+                          minPrice === '' && maxPrice === ''
+                            ? 'bg-amber-500 text-slate-950 border-amber-400'
+                            : 'bg-slate-800/80 text-slate-400 border-slate-700/50 hover:text-white'
+                        }`}
+                      >
+                        الكل
+                      </button>
+                      <button
+                        onClick={() => handlePricePreset('', 1000)}
+                        className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all border ${
+                          minPrice === '' && Number(maxPrice) === 1000
+                            ? 'bg-amber-500 text-slate-950 border-amber-400'
+                            : 'bg-slate-800/80 text-slate-300 border-slate-700/50 hover:border-amber-500/40'
+                        }`}
+                      >
+                        أقل من 1,000 ر.ي
+                      </button>
+                      <button
+                        onClick={() => handlePricePreset(1000, 2000)}
+                        className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all border ${
+                          Number(minPrice) === 1000 && Number(maxPrice) === 2000
+                            ? 'bg-amber-500 text-slate-950 border-amber-400'
+                            : 'bg-slate-800/80 text-slate-300 border-slate-700/50 hover:border-amber-500/40'
+                        }`}
+                      >
+                        1,000 - 2,000 ر.ي
+                      </button>
+                      <button
+                        onClick={() => handlePricePreset(2000, 5000)}
+                        className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all border ${
+                          Number(minPrice) === 2000 && Number(maxPrice) === 5000
+                            ? 'bg-amber-500 text-slate-950 border-amber-400'
+                            : 'bg-slate-800/80 text-slate-300 border-slate-700/50 hover:border-amber-500/40'
+                        }`}
+                      >
+                        2,000 - 5,000 ر.ي
+                      </button>
+                      <button
+                        onClick={() => handlePricePreset(5000, '')}
+                        className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all border ${
+                          Number(minPrice) === 5000 && maxPrice === ''
+                            ? 'bg-amber-500 text-slate-950 border-amber-400'
+                            : 'bg-slate-800/80 text-slate-300 border-slate-700/50 hover:border-amber-500/40'
+                        }`}
+                      >
+                        أكثر من 5,000 ر.ي
+                      </button>
+                    </div>
+
+                    {/* Custom Min / Max Inputs */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="relative">
+                        <span className="text-[10px] text-slate-400 block mb-0.5 font-medium">من (الحد الأدنى):</span>
+                        <input
+                          type="number"
+                          placeholder="مثال: 500"
+                          value={minPrice}
+                          onChange={(e) => setMinPrice && setMinPrice(e.target.value ? Number(e.target.value) : '')}
+                          className="w-full bg-slate-950 text-white text-xs rounded-lg px-2.5 py-1.5 border border-slate-700 focus:border-amber-500 outline-none"
+                        />
+                      </div>
+                      <div className="relative">
+                        <span className="text-[10px] text-slate-400 block mb-0.5 font-medium">إلى (الحد الأعلى):</span>
+                        <input
+                          type="number"
+                          placeholder="مثال: 2000"
+                          value={maxPrice}
+                          onChange={(e) => setMaxPrice && setMaxPrice(e.target.value ? Number(e.target.value) : '')}
+                          className="w-full bg-slate-950 text-white text-xs rounded-lg px-2.5 py-1.5 border border-slate-700 focus:border-amber-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Suggestion Pills if query is empty */}
+                {!searchQuery.trim() && (
+                  <div className="p-2.5 border-b border-slate-800/80 bg-slate-950/40">
+                    <p className="text-[10px] text-slate-400 mb-1.5 font-medium">أصناف الفحم الشائعة:</p>
                     <div className="flex flex-wrap gap-1.5">
                       {quickSearchTags.map((tag, idx) => (
                         <button
@@ -281,7 +522,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             setSearchQuery(tag.query);
                             setIsSearchFocused(true);
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-slate-700/60 hover:border-amber-500/40 text-[11px] font-bold transition-all"
+                          className="px-2 py-0.5 rounded-md bg-slate-800/80 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-slate-700/60 hover:border-amber-500/40 text-[10px] font-bold transition-all cursor-pointer"
                         >
                           {tag.label}
                         </button>
@@ -292,17 +533,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                 {/* Results List */}
                 {matchingProducts.length > 0 ? (
-                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-800/60">
+                  <div className="max-h-72 overflow-y-auto divide-y divide-slate-800/60">
                     {matchingProducts.map((prod) => (
                       <div
                         key={prod.id}
                         onClick={() => handleProductClick(prod)}
-                        className="p-3 hover:bg-amber-500/15 cursor-pointer flex items-center justify-between gap-3 group transition-all"
+                        className="p-2.5 hover:bg-amber-500/15 cursor-pointer flex items-center justify-between gap-3 group transition-all"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 group-hover:border-amber-500/40 overflow-hidden flex items-center justify-center shrink-0 p-1">
+                          <div className="w-11 h-11 rounded-xl bg-slate-900 border border-slate-800 group-hover:border-amber-500/40 overflow-hidden flex items-center justify-center shrink-0 p-1">
                             <img
-                              src={prod.image}
+                              src={prod.images && prod.images[0] ? prod.images[0] : ''}
                               alt={prod.nameAr}
                               className="w-full h-full object-contain group-hover:scale-105 transition-transform"
                               referrerPolicy="no-referrer"
@@ -311,37 +552,37 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <div>
                             <h4 className="text-xs sm:text-sm font-black text-white group-hover:text-amber-300 flex items-center gap-1.5">
                               <span>{prod.nameAr}</span>
-                              {prod.badge && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                                  {prod.badge}
+                              {prod.isBestSeller && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                  الأكثر طلباً 🔥
                                 </span>
                               )}
                             </h4>
-                            <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                            <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">
                               {prod.descriptionAr}
                             </p>
                           </div>
                         </div>
                         <div className="text-left shrink-0">
-                          <span className="font-mono font-black text-amber-400 text-sm block">
+                          <span className="font-mono font-black text-amber-400 text-xs sm:text-sm block">
                             {prod.price.toLocaleString()} YER
                           </span>
-                          <span className="text-[10px] text-emerald-400 font-bold">طلب سريع 👈</span>
+                          <span className="text-[10px] text-emerald-400 font-bold">عرض المنتج 👈</span>
                         </div>
                       </div>
                     ))}
                   </div>
-                ) : searchQuery.trim() ? (
+                ) : (
                   <div className="p-6 text-center text-xs text-slate-400 space-y-2">
-                    <p>لا توجد منتجات مطابقة لـ "{searchQuery}"</p>
+                    <p>لا توجد منتجات مطابقة للشروط المحددة</p>
                     <button
-                      onClick={() => setSearchQuery('')}
+                      onClick={handleReset}
                       className="text-amber-400 underline font-bold"
                     >
-                      عرض جميع المنتجات
+                      إعادة ضبط الفلاتر وعرض الكل
                     </button>
                   </div>
-                ) : null}
+                )}
               </div>
             )}
           </div>
@@ -493,9 +734,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Mobile Search Bar with Interactive Dropdown */}
+        {/* Mobile Search Bar with Interactive Dropdown & Filters */}
         <div ref={mobileSearchDropdownRef} className="pb-3 lg:hidden relative">
-          <div className="relative">
+          <div className="relative flex items-center">
             <input
               type="text"
               value={searchQuery}
@@ -504,39 +745,117 @@ export const Navbar: React.FC<NavbarProps> = ({
                 setSearchQuery(e.target.value);
                 setIsMobileSearchFocused(true);
               }}
-              placeholder={lang === 'ar' ? 'ابحث في منتجات الفحم، عبوة 250جم/500جم...' : 'Search charcoal 250g, 500g...'}
-              className="w-full bg-slate-900 text-slate-100 placeholder-slate-400 text-xs rounded-xl py-2 px-9 border border-slate-800 focus:border-amber-500/60 outline-none"
+              placeholder={lang === 'ar' ? 'ابحث في أصناف الفحم، عبوات 250g، 500g...' : 'Search charcoal 250g, 500g...'}
+              className="w-full bg-slate-900 text-slate-100 placeholder-slate-400 text-xs rounded-xl py-2.5 pr-9 pl-20 border border-slate-800 focus:border-amber-500/60 outline-none"
             />
-            <Search className="w-4 h-4 text-amber-400 absolute right-3 top-2.5 pointer-events-none" />
+            <Search className="w-4 h-4 text-amber-400 absolute right-3 pointer-events-none" />
             
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery('')}
-                className="absolute left-2.5 top-2 text-xs text-slate-400 hover:text-white p-1"
+                className="absolute left-16 text-xs text-slate-400 hover:text-white p-1"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => setIsMobileSearchFocused(true)}
+              className={`absolute left-1.5 top-1.5 bottom-1.5 px-2 rounded-lg flex items-center gap-1 text-[11px] font-bold ${
+                activeFiltersCount > 0
+                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  : 'bg-slate-800 text-slate-300'
+              }`}
+            >
+              <SlidersHorizontal className="w-3 h-3" />
+              <span>تصفية</span>
+              {activeFiltersCount > 0 && (
+                <span className="w-3.5 h-3.5 rounded-full bg-slate-950 text-amber-400 text-[9px] flex items-center justify-center font-black">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
           </div>
 
-          {/* Mobile Search Dropdown */}
+          {/* Mobile Search & Filter Dropdown */}
           {isMobileSearchFocused && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-[#12121A] border border-amber-500/40 rounded-2xl shadow-2xl overflow-hidden z-50 text-right">
               <div className="px-3 py-2 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-300">
-                  {searchQuery.trim() ? `نتائج البحث (${matchingProducts.length})` : 'أصناف الفحم المقترحة'}
+                <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5 text-amber-400" />
+                  <span>نتائج التصفية ({matchingProducts.length})</span>
                 </span>
-                <button 
-                  onClick={() => setIsMobileSearchFocused(false)} 
-                  className="text-slate-400 hover:text-white text-[11px]"
-                >
-                  إغلاق ✕
-                </button>
+                <div className="flex items-center gap-2">
+                  {activeFiltersCount > 0 && (
+                    <button 
+                      onClick={handleReset}
+                      className="text-[10px] text-rose-400 hover:underline font-bold"
+                    >
+                      إلغاء الكل
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setIsMobileSearchFocused(false)} 
+                    className="text-slate-400 hover:text-white text-[11px]"
+                  >
+                    إغلاق ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Mobile Filter Controls: Sort & Price */}
+              <div className="p-3 bg-slate-900/60 border-b border-slate-800/80 space-y-2.5">
+                {/* Sort selector */}
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 block mb-1">الترتيب:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { id: 'popular', label: '🔥 الأكثر طلباً' },
+                      { id: 'newest', label: '🆕 الأحدث' },
+                      { id: 'price-asc', label: '📈 الأقل سعراً' },
+                      { id: 'price-desc', label: '📉 الأعلى سعراً' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSortBy && setSortBy(item.id as ProductSortOption)}
+                        className={`px-2 py-1 rounded-md text-[10px] font-bold border ${
+                          sortBy === item.id
+                            ? 'bg-amber-500 text-slate-950 border-amber-400 font-black'
+                            : 'bg-slate-800 text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Price range */}
+                <div className="pt-2 border-t border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 block mb-1">نطاق السعر (ريال):</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      placeholder="الحد الأدنى (من)"
+                      value={minPrice}
+                      onChange={(e) => setMinPrice && setMinPrice(e.target.value ? Number(e.target.value) : '')}
+                      className="w-full bg-slate-950 text-white text-[11px] rounded-lg px-2 py-1 border border-slate-700 outline-none"
+                    />
+                    <input
+                      type="number"
+                      placeholder="الحد الأعلى (إلى)"
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice && setMaxPrice(e.target.value ? Number(e.target.value) : '')}
+                      className="w-full bg-slate-950 text-white text-[11px] rounded-lg px-2 py-1 border border-slate-700 outline-none"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Quick tags */}
-              {(!searchQuery.trim() || matchingProducts.length === 0) && (
-                <div className="p-2.5 border-b border-slate-800 bg-slate-900/40 flex flex-wrap gap-1">
+              {!searchQuery.trim() && (
+                <div className="p-2 border-b border-slate-800 bg-slate-900/40 flex flex-wrap gap-1">
                   {quickSearchTags.map((tag, idx) => (
                     <button
                       key={idx}
@@ -544,7 +863,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         setSearchQuery(tag.query);
                         setIsMobileSearchFocused(true);
                       }}
-                      className="px-2 py-1 rounded-md bg-slate-800 text-slate-300 text-[10px] font-bold"
+                      className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[10px] font-bold"
                     >
                       {tag.label}
                     </button>
@@ -553,7 +872,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
 
               {matchingProducts.length > 0 ? (
-                <div className="max-h-64 overflow-y-auto divide-y divide-slate-800/60">
+                <div className="max-h-60 overflow-y-auto divide-y divide-slate-800/60">
                   {matchingProducts.map((prod) => (
                     <div
                       key={prod.id}
@@ -562,7 +881,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     >
                       <div className="flex items-center gap-2.5">
                         <img
-                          src={prod.image}
+                          src={prod.images && prod.images[0] ? prod.images[0] : ''}
                           alt={prod.nameAr}
                           className="w-10 h-10 object-contain rounded bg-slate-900 p-0.5 border border-slate-800"
                           referrerPolicy="no-referrer"
@@ -575,16 +894,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </div>
                       </div>
                       <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
-                        طلب الآن 👈
+                        عرض 👈
                       </span>
                     </div>
                   ))}
                 </div>
-              ) : searchQuery.trim() ? (
-                <div className="p-4 text-center text-xs text-slate-400">
-                  لا توجد نتائج مطابقة لـ "{searchQuery}"
+              ) : (
+                <div className="p-4 text-center text-xs text-slate-400 space-y-2">
+                  <p>لا توجد نتائج مطابقة للتصفية</p>
+                  <button onClick={handleReset} className="text-amber-400 underline font-bold text-[11px]">
+                    إعادة ضبط الفلاتر
+                  </button>
                 </div>
-              ) : null}
+              )}
             </div>
           )}
         </div>

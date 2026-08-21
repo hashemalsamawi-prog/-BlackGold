@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Product, CartItem, Order, DeliveryAddress, Review, Language, DeliveryAgent, MarketingCampaign, StoreSettings, ThemeMode } from './types';
+import { Product, CartItem, Order, DeliveryAddress, Review, Language, DeliveryAgent, MarketingCampaign, StoreSettings, ThemeMode, ProductSortOption } from './types';
 import { INITIAL_PRODUCTS, MOCK_ADDRESSES, INITIAL_DELIVERY_AGENTS, INITIAL_CAMPAIGNS, INITIAL_STORE_SETTINGS, INITIAL_GALLERY_ITEMS } from './data/mockData';
 import { GalleryItem } from './types';
 
@@ -30,7 +30,7 @@ import { QualityProtocolSection } from './components/QualityProtocolSection';
 import { playOrderAlertSound } from './utils/soundAlert';
 import { safeGetLocalStorage, safeSetLocalStorage, safeRemoveLocalStorage } from './utils/storage';
 
-import { Flame, Sparkles, CheckCircle2, ShieldCheck, MapPin, Truck, Phone, Award, MessageSquare, Store, Calculator, Sun, Moon, Mail } from 'lucide-react';
+import { Flame, Sparkles, CheckCircle2, ShieldCheck, MapPin, Truck, Phone, Award, MessageSquare, Store, Calculator, Sun, Moon, Mail, SlidersHorizontal, ArrowUpDown, RotateCcw, Filter, X, AlertTriangle, RefreshCw, Clock, WifiOff, AlertCircle } from 'lucide-react';
 
 export default function App() {
   const [lang, setLang] = useState<Language>('ar');
@@ -166,6 +166,17 @@ export default function App() {
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [minPrice, setMinPrice] = useState<number | ''>('');
+  const [maxPrice, setMaxPrice] = useState<number | ''>('');
+  const [sortBy, setSortBy] = useState<ProductSortOption>('popular');
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setActiveCategory('all');
+    setMinPrice('');
+    setMaxPrice('');
+    setSortBy('popular');
+  };
 
   // Modals
   const [selectedProductDetails, setSelectedProductDetails] = useState<Product | null>(null);
@@ -187,45 +198,108 @@ export default function App() {
   // Toast Push Notification (No automatic popup on first visit)
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Products & Orders Loading, Error & 5s Timeout Resilience
+  const [productsLoaded, setProductsLoaded] = useState<boolean>(false);
+  const [ordersLoaded, setOrdersLoaded] = useState<boolean>(false);
+  const [productsLoadError, setProductsLoadError] = useState<string | null>(null);
+  const [ordersLoadError, setOrdersLoadError] = useState<string | null>(null);
+  const [loadTimeoutTriggered, setLoadTimeoutTriggered] = useState<boolean>(false);
+  const [fetchAttempt, setFetchAttempt] = useState<number>(0);
+  const [isRetrying, setIsRetrying] = useState<boolean>(false);
+
+  // 5-second timeout detector for hanging fetch requests
   useEffect(() => {
+    const timer = setTimeout(() => {
+      // If after 5 seconds, both products and orders have failed to load / are still pending
+      if (!productsLoaded && !ordersLoaded) {
+        setLoadTimeoutTriggered(true);
+      }
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [productsLoaded, ordersLoaded, fetchAttempt]);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsRetrying(true);
+    setLoadTimeoutTriggered(false);
+
     // Initial fetch from Express server (authoritative source) with fallback
     fetch('/api/products')
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((data) => {
+        if (!isMounted) return;
         if (data.success && Array.isArray(data.data) && data.data.length > 0) {
           setProducts(data.data);
           safeSetLocalStorage('bg_saved_products', JSON.stringify(data.data));
+          setProductsLoaded(true);
+          setProductsLoadError(null);
+        } else {
+          setProductsLoaded(true);
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        if (!isMounted) return;
+        console.warn('Products fetch failed:', err);
+        setProductsLoadError(err?.message || 'Network Timeout');
         const savedLocal = safeGetLocalStorage('bg_saved_products', '');
         if (savedLocal) {
           try {
             const parsed = JSON.parse(savedLocal);
             if (Array.isArray(parsed) && parsed.length > 0) {
               setProducts(parsed);
+              setProductsLoaded(true);
               return;
             }
           } catch (e) {
             console.error(e);
           }
         }
-        setProducts(INITIAL_PRODUCTS);
+      })
+      .finally(() => {
+        if (isMounted) setIsRetrying(false);
       });
 
     fetch('/api/orders')
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((data) => {
-        if (data.success && data.data.length > 0) {
+        if (!isMounted) return;
+        if (data.success && Array.isArray(data.data)) {
           setOrders(data.data);
+          setOrdersLoaded(true);
+          setOrdersLoadError(null);
+        } else {
+          setOrdersLoaded(true);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (!isMounted) return;
+        console.warn('Orders fetch failed:', err);
+        setOrdersLoadError(err?.message || 'Network Timeout');
+        const saved = safeGetLocalStorage('bg_saved_orders', '');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setOrders(parsed);
+              setOrdersLoaded(true);
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      });
 
     fetch('/api/reviews')
       .then((res) => res.json())
       .then((data) => {
-        if (data.success) {
+        if (data.success && isMounted) {
           setReviews(data.data);
         }
       })
@@ -235,7 +309,7 @@ export default function App() {
     fetch('/api/gallery')
       .then((res) => res.json())
       .then((data) => {
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        if (data.success && Array.isArray(data.data) && data.data.length > 0 && isMounted) {
           const savedLocalGal = safeGetLocalStorage('bg_saved_gallery', '');
           if (savedLocalGal) {
             try {
@@ -258,7 +332,7 @@ export default function App() {
     fetch('/api/settings')
       .then((res) => res.json())
       .then((data) => {
-        if (data.success && data.data) {
+        if (data.success && data.data && isMounted) {
           const storedLogo = safeGetLocalStorage('bg_custom_logo', '');
           setStoreSettings({
             ...INITIAL_STORE_SETTINGS,
@@ -269,11 +343,15 @@ export default function App() {
       })
       .catch(() => {
         const storedLogo = safeGetLocalStorage('bg_custom_logo', '');
-        if (storedLogo) {
+        if (storedLogo && isMounted) {
           setStoreSettings(prev => ({ ...prev, customLogoUrl: storedLogo }));
         }
       });
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchAttempt]);
 
   const handleUpdateStoreSettings = async (newSettings: StoreSettings) => {
     setStoreSettings(newSettings);
@@ -576,18 +654,45 @@ export default function App() {
     safeSetLocalStorage('bg_selected_address_id', id);
   };
 
-  // Filter products by search and category
-  const filteredProducts = products.filter((p) => {
-    const matchesCat = activeCategory === 'all' || p.category === activeCategory;
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      !q ||
-      p.nameAr.toLowerCase().includes(q) ||
-      p.nameEn.toLowerCase().includes(q) ||
-      p.descriptionAr.toLowerCase().includes(q) ||
-      p.origin.toLowerCase().includes(q);
-    return matchesCat && matchesSearch;
-  });
+  // Filter and sort products by search, category, price range, and sort option
+  const filteredProducts = React.useMemo(() => {
+    let result = products.filter((p) => {
+      // Category filter
+      const matchesCat = activeCategory === 'all' || p.category === activeCategory;
+      
+      // Text search filter
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        p.nameAr.toLowerCase().includes(q) ||
+        p.nameEn.toLowerCase().includes(q) ||
+        p.descriptionAr.toLowerCase().includes(q) ||
+        p.origin.toLowerCase().includes(q) ||
+        (p.weight && p.weight.toLowerCase().includes(q));
+
+      // Price range filter
+      const matchesMin = minPrice === '' || p.price >= Number(minPrice);
+      const matchesMax = maxPrice === '' || p.price <= Number(maxPrice);
+
+      return matchesCat && matchesSearch && matchesMin && matchesMax;
+    });
+
+    // Sorting
+    result.sort((a, b) => {
+      if (sortBy === 'price-asc') return a.price - b.price;
+      if (sortBy === 'price-desc') return b.price - a.price;
+      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+      if (sortBy === 'newest') return (b.id || '').localeCompare(a.id || '');
+      // Default: 'popular' (best sellers first, then sales count, then rating)
+      const aScore = (a.isBestSeller ? 1000 : 0) + (a.salesCount || 0) * 2 + (a.rating || 0) * 10;
+      const bScore = (b.isBestSeller ? 1000 : 0) + (b.salesCount || 0) * 2 + (b.rating || 0) * 10;
+      return bScore - aScore;
+    });
+
+    return result;
+  }, [products, activeCategory, searchQuery, minPrice, maxPrice, sortBy]);
+
+  const hasActiveFilters = searchQuery.trim() !== '' || minPrice !== '' || maxPrice !== '' || sortBy !== 'popular';
 
   return (
     <AndroidSimulatorWrapper deviceMode={deviceMode} onToggleDeviceMode={() => setDeviceMode(deviceMode === 'web' ? 'android' : 'web')}>
@@ -623,6 +728,13 @@ export default function App() {
           onOpenAuth={() => setAuthOpen(true)}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
+          minPrice={minPrice}
+          setMinPrice={setMinPrice}
+          maxPrice={maxPrice}
+          setMaxPrice={setMaxPrice}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          onResetFilters={handleResetFilters}
           activeCategory={activeCategory}
           setActiveCategory={setActiveCategory}
           userName={userName}
@@ -650,8 +762,84 @@ export default function App() {
         />
 
         {/* Main Products Grid Section */}
-        <main id="products-grid-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-10 flex-1 w-full scroll-mt-28">
+        <main id="products-grid-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8 flex-1 w-full scroll-mt-28">
           
+          {/* Catch-all UI state if both products and orders fail/hang after 5 seconds */}
+          {loadTimeoutTriggered && !productsLoaded && !ordersLoaded ? (
+            <div className="py-8 sm:py-12">
+              <div className="max-w-2xl mx-auto bg-[#121218] border-2 border-amber-500/40 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6 text-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-3xl sm:text-4xl shadow-inner">
+                  ⚠️
+                </div>
+                
+                <div className="space-y-2">
+                  <h2 className="text-xl sm:text-2xl font-black text-amber-400">
+                    {lang === 'ar' ? 'تعذر تحميل المنتجات والطلبات (تجاوز المهلة)' : 'Products & Orders Loading Timed Out'}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
+                    {lang === 'ar' 
+                      ? 'استغرقت محاولة جلب بيانات المنتجات والطلبات من الخادم أكثر من 5 ثوانٍ دون استجابة. يمكنك إعادة المحاولة أو المتابعة باستخدام كتالوج المتجر المخزن.'
+                      : 'Fetching products and orders took more than 5 seconds without response. You can retry or continue using the cached catalog.'}
+                  </p>
+                </div>
+
+                {/* Status Diagnostics */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-right max-w-md mx-auto">
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
+                    <span className="text-slate-400">{lang === 'ar' ? '📦 كتالوج المنتجات:' : '📦 Products Catalog:'}</span>
+                    <span className="font-bold text-rose-400 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {productsLoadError ? `خطأ (${productsLoadError})` : (lang === 'ar' ? 'معلق / تجاوز 5ث' : 'Timeout >5s')}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
+                    <span className="text-slate-400">{lang === 'ar' ? '📋 سجل الطلبات:' : '📋 Orders System:'}</span>
+                    <span className="font-bold text-rose-400 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {ordersLoadError ? `خطأ (${ordersLoadError})` : (lang === 'ar' ? 'معلق / تجاوز 5ث' : 'Timeout >5s')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Recovery Actions */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      setLoadTimeoutTriggered(false);
+                      setFetchAttempt(prev => prev + 1);
+                    }}
+                    disabled={isRetrying}
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
+                    <span>{lang === 'ar' ? 'إعادة محاولة الاتصال بالخادم' : 'Retry Server Connection'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setProducts(INITIAL_PRODUCTS);
+                      setProductsLoaded(true);
+                      setLoadTimeoutTriggered(false);
+                      setToastMessage(lang === 'ar' ? 'تم تفعيل كتالوج الفحم الفاخر بنجاح 🔥' : 'Loaded offline catalog');
+                      setTimeout(() => setToastMessage(null), 3000);
+                    }}
+                    className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-100 font-bold text-xs sm:text-sm transition-all border border-slate-700 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Flame className="w-4 h-4 text-amber-400" />
+                    <span>{lang === 'ar' ? 'تشغيل الكتالوج الاحتياطي' : 'Load Cached Catalog'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="w-full sm:w-auto px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-slate-400 hover:text-slate-200 font-medium text-xs transition-all border border-slate-800 cursor-pointer"
+                  >
+                    {lang === 'ar' ? 'تحديث المتصفح 🔄' : 'Reload'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
           {/* Category Switcher & Filter Headline */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4 bg-slate-950/40 p-4 sm:p-5 rounded-2xl border border-slate-800">
             <div>
@@ -708,6 +896,56 @@ export default function App() {
               ))}
             </div>
           </div>
+
+          {/* Active Filter Indicators Strip */}
+          {hasActiveFilters && (
+            <div className="bg-amber-500/10 border border-amber-500/30 p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold text-amber-400 flex items-center gap-1">
+                  <Filter className="w-3.5 h-3.5" />
+                  <span>الفلاتر النشطة ({filteredProducts.length} منتج):</span>
+                </span>
+
+                {searchQuery.trim() && (
+                  <span className="bg-slate-900 text-slate-200 px-2.5 py-1 rounded-lg border border-slate-700 flex items-center gap-1 font-medium">
+                    <span>البحث: "{searchQuery}"</span>
+                    <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-rose-400">✕</button>
+                  </span>
+                )}
+
+                {(minPrice !== '' || maxPrice !== '') && (
+                  <span className="bg-slate-900 text-amber-300 px-2.5 py-1 rounded-lg border border-amber-500/40 flex items-center gap-1 font-medium">
+                    <span>
+                      السعر: {minPrice ? `من ${Number(minPrice).toLocaleString()} ر.ي` : ''} {maxPrice ? `إلى ${Number(maxPrice).toLocaleString()} ر.ي` : ''}
+                    </span>
+                    <button
+                      onClick={() => { setMinPrice(''); setMaxPrice(''); }}
+                      className="text-slate-400 hover:text-rose-400"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )}
+
+                {sortBy !== 'popular' && (
+                  <span className="bg-slate-900 text-amber-300 px-2.5 py-1 rounded-lg border border-amber-500/40 flex items-center gap-1 font-medium">
+                    <span>
+                      الترتيب: {sortBy === 'newest' ? '🆕 الأحدث وصولاً' : sortBy === 'price-asc' ? '📈 الأقل سعراً' : sortBy === 'price-desc' ? '📉 الأعلى سعراً' : '⭐ الأعلى تقييماً'}
+                    </span>
+                    <button onClick={() => setSortBy('popular')} className="text-slate-400 hover:text-rose-400">✕</button>
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={handleResetFilters}
+                className="text-rose-400 hover:text-rose-300 flex items-center gap-1 font-bold hover:underline cursor-pointer mr-auto sm:mr-0"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>إعادة ضبط الكل</span>
+              </button>
+            </div>
+          )}
 
           {/* Grid Cards */}
           {filteredProducts.length === 0 ? (
@@ -800,6 +1038,8 @@ export default function App() {
               <p className="text-xs text-slate-400">الدفع عند الاستلام كاش أو حاسب / بنك الكريمي والمحافظ الإلكترونية</p>
             </div>
           </section>
+          </>
+          )}
 
         </main>
 
