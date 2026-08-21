@@ -193,6 +193,7 @@ export interface StoreSettings {
   freeDeliveryThreshold: number;
   isStoreOpen: boolean;
   defaultCouponCode: string;
+  contactEmail?: string;
   deliveryDistricts: DistrictDeliveryConfig[];
 }
 

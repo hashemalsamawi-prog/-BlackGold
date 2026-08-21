@@ -30,7 +30,7 @@ import { QualityProtocolSection } from './components/QualityProtocolSection';
 import { playOrderAlertSound } from './utils/soundAlert';
 import { safeGetLocalStorage, safeSetLocalStorage, safeRemoveLocalStorage } from './utils/storage';
 
-import { Flame, Sparkles, CheckCircle2, ShieldCheck, MapPin, Truck, Phone, Award, MessageSquare, Store, Calculator, Sun, Moon } from 'lucide-react';
+import { Flame, Sparkles, CheckCircle2, ShieldCheck, MapPin, Truck, Phone, Award, MessageSquare, Store, Calculator, Sun, Moon, Mail } from 'lucide-react';
 
 export default function App() {
   const [lang, setLang] = useState<Language>('ar');
@@ -184,36 +184,33 @@ export default function App() {
   const [checkoutCustomerNotes, setCheckoutCustomerNotes] = useState('');
   const [checkoutDistrictName, setCheckoutDistrictName] = useState('حدة');
 
-  // Toast Push Notification
-  const [toastMessage, setToastMessage] = useState<string | null>("مرحباً بك في متجر الذهب الأسود! توصيل فوري داخل صنعاء خلال 45 دقيقة 🔥");
+  // Toast Push Notification (No automatic popup on first visit)
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Initial fetch from Express server with localStorage fallback & sync
-    const savedLocal = safeGetLocalStorage('bg_saved_products', '');
+    // Initial fetch from Express server (authoritative source) with fallback
     fetch('/api/products')
       .then((res) => res.json())
       .then((data) => {
-        if (data.success && data.data.length > 0) {
-          if (savedLocal) {
-            // If user has local edits, keep local edits but can sync new ones
-            try {
-              const parsed = JSON.parse(savedLocal);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                setProducts(parsed);
-                return;
-              }
-            } catch (e) {
-              console.error(e);
-            }
-          }
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
           setProducts(data.data);
           safeSetLocalStorage('bg_saved_products', JSON.stringify(data.data));
         }
       })
       .catch(() => {
-        if (!savedLocal) {
-          setProducts(INITIAL_PRODUCTS);
+        const savedLocal = safeGetLocalStorage('bg_saved_products', '');
+        if (savedLocal) {
+          try {
+            const parsed = JSON.parse(savedLocal);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setProducts(parsed);
+              return;
+            }
+          } catch (e) {
+            console.error(e);
+          }
         }
+        setProducts(INITIAL_PRODUCTS);
       });
 
     fetch('/api/orders')
@@ -738,8 +735,8 @@ export default function App() {
             </div>
           )}
 
-          {/* B2B Profit Calculator is shown ONLY in the Wholesale section for store owners */}
-          {activeCategory === 'wholesale' && (
+          {/* B2B Profit Calculator is shown ONLY to authorized store owners and admins in the Wholesale section */}
+          {(userRole === 'owner' || (userRole as string) === 'admin') && activeCategory === 'wholesale' && (
             <div ref={calculatorRef} className="space-y-6">
               <B2BProfitCalculator
                 lang={lang}
@@ -754,7 +751,7 @@ export default function App() {
           {/* Marketing & Real Product Photos Gallery */}
           <MarketingGallery lang={lang} />
 
-          {/* B2B Grocery & Restaurant Wholesale Partner Banner (shown in retail view to invite business owners) */}
+          {/* B2B Grocery & Restaurant Wholesale Partner Banner */}
           {activeCategory !== 'wholesale' && (
             <section className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-amber-500/10 via-[#161622] to-amber-500/10 border border-amber-500/30 flex flex-col md:flex-row items-center justify-between gap-6 text-right">
               <div className="space-y-1.5">
@@ -766,7 +763,7 @@ export default function App() {
                   هل تدير بقالة، سوبرماركت، أو مطعماً وتريد شحنات دورية منتظمة؟
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-400">
-                  نوفر صناديق التوزيع الفاخرة مع استاندات العرض المعدنية المجانية، وشوالات المطاعم الكبرى 20kg بأسعار جملة منافسة وحاسبة أرباح مخصصة.
+                  نوفر صناديق التوزيع الفاخرة مع استاندات العرض المعدنية، وشوالات المطاعم الكبرى 20kg بأسعار جملة منافسة وتوصيل دوري مباشر.
                 </p>
               </div>
 
@@ -778,7 +775,7 @@ export default function App() {
                 className="px-6 py-3.5 rounded-xl gold-gradient-bg text-slate-950 font-black text-sm hover:brightness-110 shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
               >
                 <Store className="w-4 h-4 fill-slate-950" />
-                <span>فتح قسم الجملة وحاسبة أرباح التاجر</span>
+                <span>تصفح عروض وأسعار الجملة</span>
               </button>
             </section>
           )}
@@ -787,8 +784,8 @@ export default function App() {
           <section className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             <div className="p-5 rounded-2xl bg-[#121218] border border-amber-500/20 space-y-2">
               <Truck className="w-8 h-8 text-amber-400 mx-auto" />
-              <h4 className="font-black text-white text-sm">شاشة مندوب التوصيل المباشر</h4>
-              <p className="text-xs text-slate-400">تتبع حي ومباشر للمندوب حتى وصوله لبوابة منزلك بصنعاء</p>
+              <h4 className="font-black text-white text-sm">توصيل فوري داخل صنعاء</h4>
+              <p className="text-xs text-slate-400">تغطية شاملة لكافة مديريات وأحياء صنعاء خلال 45 دقيقة</p>
             </div>
 
             <div className="p-5 rounded-2xl bg-[#121218] border border-amber-500/20 space-y-2">
@@ -819,13 +816,21 @@ export default function App() {
 
             <div className="flex flex-wrap items-center justify-center gap-4 text-slate-400 font-bold">
               <a 
-                href="https://wa.me/967775000150" 
+                href="https://wa.me/967775000150?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%D8%8C%20%D8%A3%D8%B1%D9%8A%D8%AF%20%D8%A7%D9%84%D8%A7%D8%B3%D8%AA%D9%81%D8%B3%D8%A7%D8%B1%20%D8%B9%D9%86%20%D9%85%D9%86%D8%AA%D8%AC%D8%A7%D8%AA%20%D9%81%D8%AD%D9%85%20%D8%A7%D9%84%D8%B0%D9%87%D8%A8%20%D8%A7%D9%84%D8%A3%D8%B3%D9%88%D8%AF" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-black"
               >
                 <MessageSquare className="w-4 h-4 text-emerald-400" />
                 <span>واتساب المبيعات: 775000150 💬</span>
+              </a>
+              <span>•</span>
+              <a 
+                href="mailto:blackgoled.ye@gmail.com" 
+                className="text-slate-300 hover:text-amber-400 transition-colors flex items-center gap-1.5"
+              >
+                <Mail className="w-3.5 h-3.5 text-amber-400" />
+                <span>blackgoled.ye@gmail.com</span>
               </a>
               <span>•</span>
               <span>أمانة العاصمة - صنعاء</span>

@@ -453,21 +453,21 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* User Profile / Customer Login & Guest Mode */}
+            {/* User Profile / Customer Login */}
             <button
               onClick={onOpenAuth}
-              className={`flex p-2 sm:px-3 sm:py-2 rounded-xl border transition-all items-center gap-1.5 active:scale-95 cursor-pointer ${
+              className={`flex p-2 sm:px-3.5 sm:py-2 rounded-xl border transition-all items-center gap-2 active:scale-95 cursor-pointer ${
                 userName
                   ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-800 hover:border-amber-500/40'
                   : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
               }`}
-              title={userName ? `حساب العميل: ${userName}` : 'حساب العميل أو التسوق كزائر'}
+              title={userName ? `حساب العميل: ${userName}` : 'تسجيل الدخول أو حسابي'}
             >
               <User className="w-4 h-4 text-amber-400" />
               {userName ? (
                 <div className="text-right hidden sm:block">
                   <span className="text-[10px] text-amber-400/80 block leading-tight font-medium">
-                    حساب العميل
+                    حسابي
                   </span>
                   <span className="text-xs font-bold text-amber-300 max-w-[110px] truncate block leading-tight">
                     {userName}
@@ -475,11 +475,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               ) : (
                 <div className="text-right hidden sm:block">
-                  <span className="text-[10px] text-slate-400 block leading-tight font-medium">
-                    وضع التسوق
-                  </span>
                   <span className="text-xs font-bold text-amber-300 block leading-tight whitespace-nowrap">
-                    {lang === 'ar' ? 'زائر / دخول' : 'Guest / Sign In'}
+                    {lang === 'ar' ? 'تسجيل الدخول' : 'Sign In'}
                   </span>
                 </div>
               )}
@@ -607,10 +604,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4 text-amber-400" />
-                <span>{userName ? `حسابي: ${userName}` : 'حساب العميل أو الدخول كزائر ⚡'}</span>
+                <span>{userName ? `حسابي: ${userName}` : 'تسجيل الدخول / حسابي'}</span>
               </div>
               <span className="text-xs text-amber-400 underline">
-                {userName ? 'إدارة الحساب' : 'اختيار الوضع'}
+                {userName ? 'إدارة الحساب' : 'دخول'}
               </span>
             </button>
 

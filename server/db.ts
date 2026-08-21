@@ -1,7 +1,95 @@
-import { Product, DeliveryAddress, Coupon, Order, Review } from '../types';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { Product, Order, Review, Coupon, DeliveryAgent, StoreSettings, GalleryItem } from '../src/types';
 
-export const INITIAL_PRODUCTS: Product[] = [
-  // 1. Premium Line 250g
+export interface UserAccount {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  role: 'customer' | 'admin' | 'owner' | 'employee' | 'delivery';
+  passwordHash?: string;
+  pin?: string;
+  createdAt: string;
+  lastLogin?: string;
+}
+
+export interface InventoryTransaction {
+  id: string;
+  productId: string;
+  productName: string;
+  type: 'initial' | 'purchase' | 'sale' | 'return' | 'damage' | 'adjustment';
+  quantity: number; // positive or negative
+  previousStock: number;
+  newStock: number;
+  reason: string;
+  performedBy: string;
+  date: string;
+}
+
+export interface DatabaseSchema {
+  users: UserAccount[];
+  products: Product[];
+  orders: Order[];
+  reviews: Review[];
+  coupons: Coupon[];
+  deliveryAgents: DeliveryAgent[];
+  storeSettings: StoreSettings;
+  galleryItems: GalleryItem[];
+  inventoryTransactions: InventoryTransaction[];
+  abandonedCarts: Array<{
+    id: string;
+    customerPhone?: string;
+    customerName?: string;
+    items: any[];
+    subtotal: number;
+    updatedAt: string;
+  }>;
+  analyticsEvents: Array<{
+    id: string;
+    event: string;
+    data: any;
+    timestamp: string;
+    userId?: string;
+  }>;
+}
+
+const DB_FILE_PATH = path.join(process.cwd(), 'data', 'db.json');
+
+// Helper to hash passwords / PINs
+export function hashSecret(secret: string): string {
+  return crypto.createHash('sha256').update(secret + 'BLACK_GOLD_SALT_2026').digest('hex');
+}
+
+// Generate secure session tokens (JWT-like HMAC-SHA256)
+const JWT_SECRET = process.env.JWT_SECRET || 'bg_secure_secret_sanaa_2026_production_key';
+
+export function generateToken(payload: { userId: string; role: string; phone: string; name: string }): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify({ ...payload, iat: Date.now(), exp: Date.now() + 30 * 24 * 60 * 60 * 1000 })).toString('base64url');
+  const signature = crypto.createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url');
+  return `${header}.${body}.${signature}`;
+}
+
+export function verifyToken(token: string): { userId: string; role: string; phone: string; name: string } | null {
+  try {
+    if (!token) return null;
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [header, body, signature] = parts;
+    const expectedSig = crypto.createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url');
+    if (signature !== expectedSig) return null;
+    const decoded = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (decoded.exp && decoded.exp < Date.now()) return null;
+    return decoded;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Default Seed Data
+const DEFAULT_PRODUCTS: Product[] = [
   {
     id: "bg-prem-250g",
     nameAr: "فحم الذهب الأسود الفاخر (250g + 10g مجاناً)",
@@ -38,8 +126,6 @@ export const INITIAL_PRODUCTS: Product[] = [
     isBestSeller: true,
     stock: 800
   },
-
-  // 2. Premium Line 500g
   {
     id: "bg-prem-500g",
     nameAr: "فحم الذهب الأسود الفاخر (500g + 10g مجاناً)",
@@ -76,8 +162,6 @@ export const INITIAL_PRODUCTS: Product[] = [
     isBestSeller: true,
     stock: 650
   },
-
-  // 3. Premium Line 1kg
   {
     id: "bg-prem-1kg",
     nameAr: "فحم الذهب الأسود الفاخر (1 كجم كامل + 10g مجاناً)",
@@ -112,8 +196,6 @@ export const INITIAL_PRODUCTS: Product[] = [
     isBestSeller: false,
     stock: 400
   },
-
-  // 4. Standard Line 250g (الفحم الشعبي الاقتصادي)
   {
     id: "bg-std-250g",
     nameAr: "فحم الذهب الأسود الشعبي (250g + 10g مجاناً)",
@@ -147,8 +229,6 @@ export const INITIAL_PRODUCTS: Product[] = [
     isBestSeller: true,
     stock: 1200
   },
-
-  // 5. Standard Line 500g & 1kg
   {
     id: "bg-std-500g",
     nameAr: "فحم الذهب الأسود الشعبي (500g + 10g مجاناً)",
@@ -181,7 +261,6 @@ export const INITIAL_PRODUCTS: Product[] = [
     isBestSeller: false,
     stock: 900
   },
-
   {
     id: "bg-std-1kg",
     nameAr: "فحم الذهب الأسود الشعبي (1 كجم كامل + 10g مجاناً)",
@@ -214,8 +293,6 @@ export const INITIAL_PRODUCTS: Product[] = [
     isBestSeller: true,
     stock: 1500
   },
-
-  // 6. Wholesale Retail Display Stand Box (24 Pouches)
   {
     id: "bg-retail-box",
     nameAr: "صندوق العرض والترويج للبقالات (24 عبوة + ستاند خشبي مجاناً)",
@@ -250,8 +327,6 @@ export const INITIAL_PRODUCTS: Product[] = [
     isBestSeller: true,
     stock: 120
   },
-
-  // 7. Wholesale Restaurant Sack (شوال فحم خشن للمطاعم 20 كجم - Zero-Waste output)
   {
     id: "bg-restaurant-sack",
     nameAr: "شوال فحم خشن نقي للمطاعم والمشاوي (شوال 20 كجم)",
@@ -285,8 +360,6 @@ export const INITIAL_PRODUCTS: Product[] = [
     isBestSeller: false,
     stock: 250
   },
-
-  // 8. Quick Ignition Golden Cubes (مكعبات الإشعال السريع)
   {
     id: "bg-ignition-cubes",
     nameAr: "مكعبات الإشعال السريع الذهبية (عبوة 24 مكعب)",
@@ -319,57 +392,131 @@ export const INITIAL_PRODUCTS: Product[] = [
   }
 ];
 
-export const SANAA_DISTRICTS = [
-  { id: "حدة", nameAr: "حدة (شارع حدة، صخر، الحي السياسي)", nameEn: "Haddah", fee: 1000, coords: { lat: 15.338, lng: 44.192 } },
-  { id: "السبعين", nameAr: "السبعين وبيت بوس وعطان", nameEn: "Al Sabeen & Bayt Baws", fee: 1000, coords: { lat: 15.321, lng: 44.205 } },
-  { id: "التحرير", nameAr: "التحرير ووسط العاصمة", nameEn: "Al Tahrir (Center)", fee: 1000, coords: { lat: 15.355, lng: 44.206 } },
-  { id: "الحصبة", nameAr: "الحصبة وشارع المطار القديم", nameEn: "Al Hasabah", fee: 1200, coords: { lat: 15.381, lng: 44.211 } },
-  { id: "الصافية", nameAr: "الصافية وميدان السبعين الشرقي", nameEn: "Al Safiyah", fee: 1000, coords: { lat: 15.342, lng: 44.221 } },
-  { id: "شعوب", nameAr: "شعوب وباب الشعوب ونقم", nameEn: "Sho'ub", fee: 1200, coords: { lat: 15.368, lng: 44.228 } },
-  { id: "الروضة", nameAr: "الروضة ومحيط المطار", nameEn: "Al Rawdah", fee: 1500, coords: { lat: 15.421, lng: 44.238 } },
-  { id: "شملان", nameAr: "شملan ومذبح والستين الغربي", nameEn: "Shamlan & Madhbah", fee: 1500, coords: { lat: 15.412, lng: 44.168 } },
-  { id: "بني الحارث", nameAr: "بني الحارث وجولة مصعب", nameEn: "Bani Al Harith", fee: 1800, coords: { lat: 15.451, lng: 44.225 } }
-];
-
-export const MOCK_ADDRESSES: DeliveryAddress[] = [
+const DEFAULT_USERS: UserAccount[] = [
   {
-    id: "addr-1",
-    title: "منزل حدة",
-    city: "صنعاء",
-    district: "حدة",
-    street: "شارع صخر - خلف سوبرماركت السعيد",
-    landmark: "بجوار مسجد الخير - عماره 12",
-    coordinates: { lat: 15.338, lng: 44.192 },
-    notes: "البوابة الرئيسية سوداء، اتصل عند الشارع الرئيسي",
-    isDefault: true
+    id: "usr-owner-1",
+    name: "هاشم السماوي",
+    phone: "775000150",
+    email: "hashem@blackgold.ye",
+    role: "owner",
+    passwordHash: hashSecret("7777"),
+    pin: hashSecret("7777"),
+    createdAt: "2026-01-01T00:00:00.000Z"
   },
   {
-    id: "addr-2",
-    title: "مقر العمل / الشركة",
-    city: "صنعاء",
-    district: "السبعين",
-    street: "شارع الستين الجنوبي",
-    landmark: "أمام برج التضامن",
-    coordinates: { lat: 15.321, lng: 44.205 },
-    notes: "التسليم للاستقبال في الدور الأرضي",
-    isDefault: false
+    id: "usr-admin-1",
+    name: "مدير العمليات (صنعاء)",
+    phone: "771112233",
+    email: "admin@blackgold.ye",
+    role: "admin",
+    passwordHash: hashSecret("admin2026"),
+    pin: hashSecret("1234"),
+    createdAt: "2026-01-01T00:00:00.000Z"
+  },
+  {
+    id: "usr-emp-1",
+    name: "مسؤول المخزون والمبيعات",
+    phone: "772223344",
+    email: "inventory@blackgold.ye",
+    role: "employee",
+    passwordHash: hashSecret("emp2026"),
+    pin: hashSecret("5555"),
+    createdAt: "2026-01-01T00:00:00.000Z"
+  },
+  {
+    id: "dr-1",
+    name: "أحمد الكبسي",
+    phone: "770099887",
+    role: "delivery",
+    passwordHash: hashSecret("driver123"),
+    pin: hashSecret("8888"),
+    createdAt: "2026-01-01T00:00:00.000Z"
+  },
+  {
+    id: "dr-2",
+    name: "محمد الحيمي",
+    phone: "773344556",
+    role: "delivery",
+    passwordHash: hashSecret("driver123"),
+    pin: hashSecret("8888"),
+    createdAt: "2026-01-01T00:00:00.000Z"
   }
 ];
 
-export const PAYMENT_METHODS = [
-  { id: "cod", nameAr: "الدفع عند الاستلام (نقداً)", nameEn: "Cash on Delivery", icon: "banknote", descAr: "ادفع كاش للمندوب عند استلام شحنة الفحم (سياسة التحصيل 95% الفورية)" },
-  { id: "kuraimi", nameAr: "حاسب / بنك الكريمي", nameEn: "Kuraimi Haseb", icon: "wallet", descAr: "تحويل مباشر إلى حساب الكريمي رقم (21234567)" },
-  { id: "wallet", nameAr: "المحافظ الإلكترونية (جيب / فلوسك / كاش / ون كاش)", nameEn: "E-Wallets", icon: "smartphone", descAr: "الدفع الفوري عبر المحافظ الإلكترونية المعتمدة" },
-  { id: "card", nameAr: "البطاقة البنكية / الدفع الإلكتروني", nameEn: "Bank Card", icon: "credit-card", descAr: "بطاقات الدفع الإلكتروني والتحويل البنكي" }
+const DEFAULT_ORDERS: Order[] = [
+  {
+    id: "ORD-9082",
+    orderNumber: "BG-2026-9082",
+    date: "2026-08-20 14:30",
+    status: "delivering",
+    items: [
+      { productId: "bg-prem-250g", productNameAr: "فحم الذهب الأسود الفاخر (250g + 10g مجاناً)", weight: "250g (ربع كيلو)", quantity: 2, unitPrice: 600 },
+      { productId: "bg-std-1kg", productNameAr: "فحم الذهب الأسود الشعبي (1 كجم كامل + 10g مجاناً)", weight: "1kg (كيلو كامل)", quantity: 1, unitPrice: 1200 }
+    ],
+    subtotal: 2400,
+    shippingFee: 800,
+    discount: 240,
+    total: 2960,
+    address: {
+      id: "addr-1",
+      title: "المنزل الرئيسي",
+      city: "صنعاء",
+      district: "حدة - شارع صخر بجوار سوبرماركت السعيد",
+      street: "شارع 14",
+      landmark: "أمام عمارة النصر",
+      coordinates: { lat: 15.348, lng: 44.191 },
+      notes: "يرجى الاتصال قبل الوصول بـ 10 دقائق"
+    },
+    customerName: "هاشم السماوي",
+    customerPhone: "775000150",
+    paymentMethod: "cod",
+    notes: "يرجى تسليم الطلب حرارياً في كيس حافظ",
+    driverId: "dr-1",
+    driverName: "أحمد الكبسي",
+    driverPhone: "770099887",
+    timeline: [
+      { status: "received", time: "14:30", titleAr: "تم استلام الطلب", titleEn: "Order Received" },
+      { status: "preparing", time: "14:35", titleAr: "قيد التجهيز والتغليف", titleEn: "Order Preparing" },
+      { status: "shipped", time: "14:45", titleAr: "تم التسليم للمندوب", titleEn: "Handed to Driver" },
+      { status: "delivering", time: "14:50", titleAr: "في الطريق إليك مع المندوب", titleEn: "On the way with Driver" }
+    ]
+  }
 ];
 
-export const INITIAL_DELIVERY_AGENTS: any[] = [
+const DEFAULT_REVIEWS: Review[] = [
+  {
+    id: "rev-1",
+    productId: "bg-prem-250g",
+    userName: "محمد الحيمي",
+    rating: 5,
+    comment: "فحم ممتاز جداً حرارته عالية وما يطلع أي دخان أو ريحة للمجالس، الشحن في صنعاء كان سريع جداً بنفس اليوم!",
+    date: "2026-08-15",
+    verifiedPurchase: true
+  },
+  {
+    id: "rev-2",
+    productId: "bg-std-1kg",
+    userName: "صالح العنسي",
+    rating: 5,
+    comment: "الفحم البلدي ممتاز جداً للشواء في حدائق صنعاء.. عبوة الـ 1 كجم ممتازة ونظيفة بدون غبار.",
+    date: "2026-08-18",
+    verifiedPurchase: true
+  }
+];
+
+const DEFAULT_COUPONS: Coupon[] = [
+  { code: "GOLD10", discountPercent: 10, maxDiscount: 2000, minOrderAmount: 2000, isActive: true, validUntil: "2026-12-31" },
+  { code: "SANAA", discountPercent: 15, maxDiscount: 3000, minOrderAmount: 3000, isActive: true, validUntil: "2026-12-31" },
+  { code: "WELCOME", discountPercent: 20, maxDiscount: 1500, minOrderAmount: 1500, isActive: true, validUntil: "2026-12-31" }
+];
+
+const DEFAULT_AGENTS: DeliveryAgent[] = [
   {
     id: "dr-1",
     name: "أحمد الكبسي",
     phone: "770099887",
     vehicleType: "motorcycle",
-    districtZone: "حدة والسبعين وعطان",
+    districtZone: "حدة، السبعين، وعطان",
     activeOrdersCount: 2,
     deliveredCount: 148,
     rating: 4.95,
@@ -378,83 +525,60 @@ export const INITIAL_DELIVERY_AGENTS: any[] = [
   },
   {
     id: "dr-2",
-    name: "محمد العنسي",
-    phone: "771122334",
+    name: "محمد الحيمي",
+    phone: "773344556",
     vehicleType: "motorcycle",
-    districtZone: "التحرير وشعوب والروضة",
+    districtZone: "التحرير، الحصبة، وبير العزب",
     activeOrdersCount: 1,
-    deliveredCount: 112,
-    rating: 4.9,
+    deliveredCount: 92,
+    rating: 4.88,
     isOnline: true,
-    vehiclePlate: "صنعاء - 89211 د"
+    vehiclePlate: "صنعاء - 8921 ب"
   },
   {
     id: "dr-3",
-    name: "إبراهيم المؤيد",
-    phone: "773344556",
+    name: "صالح الماوري",
+    phone: "774455667",
     vehicleType: "van",
-    districtZone: "شملان ومذبح وشارع الستين",
+    districtZone: "شوالات المطاعم وصناديق الجملة",
     activeOrdersCount: 3,
-    deliveredCount: 205,
-    rating: 4.98,
+    deliveredCount: 215,
+    rating: 5.0,
     isOnline: true,
-    vehiclePlate: "صنعاء - نقل 4501"
-  },
-  {
-    id: "dr-4",
-    name: "سامي الحيمي",
-    phone: "775566778",
-    vehicleType: "motorcycle",
-    districtZone: "الحصبة وبني الحارث ونقم",
-    activeOrdersCount: 0,
-    deliveredCount: 94,
-    rating: 4.88,
-    isOnline: false,
-    vehiclePlate: "صنعاء - 33109 د"
+    vehiclePlate: "صنعاء - 33100 نقل"
   }
 ];
 
-export const INITIAL_CAMPAIGNS: any[] = [
-  {
-    id: "camp-1",
-    titleAr: "حملة الجمعة الملكية: خصم 15% على جميع عبوات الفحم",
-    titleEn: "Royal Friday Campaign: 15% OFF",
-    badge: "🔥 أقوى عروض نهاية الأسبوع",
-    discountText: "استخدم كوبون SANAA للطلبات أكثر من 5,000 YER",
-    isActive: true,
-    couponCode: "SANAA",
-    startDate: "2026-08-15",
-    endDate: "2026-08-30"
-  },
-  {
-    id: "camp-2",
-    titleAr: "عرض التأسيس للبقالات والمقاهي: ستاند خشبي مجاني + 24 عبوة",
-    titleEn: "B2B Starter Kit: Free Wooden Stand + 24 Pouches",
-    badge: "📦 عرض خاص للأنشطة التجارية",
-    discountText: "وفر 3,500 YER مع ضمان الاسترجاع الكامل",
-    isActive: true,
-    couponCode: "GOLD10",
-    startDate: "2026-08-01",
-    endDate: "2026-09-01"
-  },
-  {
-    id: "camp-3",
-    titleAr: "ضمان الثقة والوزن الزائد: +10 جرام مجاناً في كل كيس",
-    titleEn: "Trust Guarantee: +10g Free Overpack",
-    badge: "⚖️ معتمد بموازين دقيقة",
-    discountText: "أكياس Zipper عازلة للرطوبة بدون أي أدخنة",
-    isActive: true,
-    startDate: "2026-01-01",
-    endDate: "2026-12-31"
-  }
-];
+const DEFAULT_SETTINGS: StoreSettings = {
+  storeNameAr: "فحم الذهب الأسود",
+  storeNameEn: "Black Gold Charcoal",
+  sloganAr: "الفحم النباتي الأجود في اليمن • نقاء، حرارة مضاعفة، وتوصيل فوري لباب بيتك",
+  logoText: "الذهب الأسود",
+  customLogoUrl: "",
+  topBannerNoticeAr: "🔥 خدمة التوصيل السريع داخل العاصمة صنعاء خلال 45 دقيقة - الدفع عند الاستلام أو عبر الكريمي وحاسب",
+  topBannerNoticeEn: "🔥 Express delivery within Sanaa in 45 mins - Cash on delivery & Bank transfers",
+  whatsappPhone: "775000150",
+  callPhone: "01400100",
+  freeDeliveryThreshold: 8000,
+  isStoreOpen: true,
+  defaultCouponCode: "GOLD10",
+  contactEmail: "blackgoled.ye@gmail.com",
+  deliveryDistricts: [
+    { id: 'd1', nameAr: 'حدة والمدينة السكنية', nameEn: 'Hadda', fee: 700, etaMinutes: 30, isActive: true },
+    { id: 'd2', nameAr: 'السبعين وعطان', nameEn: 'Al-Sabeen', fee: 800, etaMinutes: 35, isActive: true },
+    { id: 'd3', nameAr: 'التحرير وشارع جمال', nameEn: 'Al-Tahrir', fee: 800, etaMinutes: 40, isActive: true },
+    { id: 'd4', nameAr: 'الحصبة ومازدا', nameEn: 'Al-Hasaba', fee: 900, etaMinutes: 45, isActive: true },
+    { id: 'd5', nameAr: 'شميلة والخفجي', nameEn: 'Shumaila', fee: 900, etaMinutes: 40, isActive: true },
+    { id: 'd6', nameAr: 'مذبح وشارع الثلاثين', nameEn: 'Mazbah', fee: 1000, etaMinutes: 50, isActive: true }
+  ]
+};
 
-export const INITIAL_GALLERY_ITEMS = [
+const DEFAULT_GALLERY: GalleryItem[] = [
   {
     id: 'g1',
     titleAr: 'عبوات الذهب الأسود الفاخرة (250g و 500g)',
     titleEn: 'Black Gold Luxury Pouches (250g & 500g)',
-    category: 'pouches' as const,
+    category: 'pouches',
     categoryNameAr: 'العبوات والتغليف',
     categoryNameEn: 'Packaging & Pouches',
     image: '/src/assets/images/black_gold_pouch_pair_1786125935649.jpg',
@@ -468,7 +592,7 @@ export const INITIAL_GALLERY_ITEMS = [
     id: 'g2',
     titleAr: 'تجربة الشيشة الفاخرة بمكعبات الفحم النقية',
     titleEn: 'Luxury Shisha Session with Pure Cubes',
-    category: 'shisha' as const,
+    category: 'shisha',
     categoryNameAr: 'جلسات الشيشة والحرارة',
     categoryNameEn: 'Shisha & Heat Experience',
     image: '/src/assets/images/black_gold_shisha_session_1786125947470.jpg',
@@ -482,7 +606,7 @@ export const INITIAL_GALLERY_ITEMS = [
     id: 'g3',
     titleAr: 'منصات وعوارض العرض في منافذ البيع',
     titleEn: 'Luxury Retail Store Display Stands',
-    category: 'retail' as const,
+    category: 'retail',
     categoryNameAr: 'منافذ البيع والمتاجر',
     categoryNameEn: 'Retail & Store Displays',
     image: '/src/assets/images/black_gold_retail_stand_1786125959576.jpg',
@@ -496,7 +620,7 @@ export const INITIAL_GALLERY_ITEMS = [
     id: 'g4',
     titleAr: 'أسطول دراجات التوصيل المباشر بصنعاء',
     titleEn: 'Sanaa Express Motorbike Delivery Fleet',
-    category: 'delivery' as const,
+    category: 'delivery',
     categoryNameAr: 'أسطول التوصيل والسائقين',
     categoryNameEn: 'Delivery Fleet & Drivers',
     image: '/src/assets/images/black_gold_delivery_fleet_1786125973582.jpg',
@@ -510,7 +634,7 @@ export const INITIAL_GALLERY_ITEMS = [
     id: 'g5',
     titleAr: 'طقم الهوية البصرية والزي الموحد للشركة',
     titleEn: 'Official Brand Identity & Merchandise Kit',
-    category: 'merch' as const,
+    category: 'merch',
     categoryNameAr: 'الهوية والتسويق',
     categoryNameEn: 'Brand & Marketing',
     image: '/src/assets/images/black_gold_merch_kit_1786125990648.jpg',
@@ -522,18 +646,292 @@ export const INITIAL_GALLERY_ITEMS = [
   }
 ];
 
-export const INITIAL_STORE_SETTINGS = {
-  storeNameAr: "فحم الذهب الأسود",
-  storeNameEn: "Black Gold Charcoal",
-  sloganAr: "الفحم النباتي الأجود في اليمن • نقاء، حرارة مضاعفة، وتوصيل فوري لباب بيتك",
-  logoText: "الذهب الأسود",
-  topBannerNoticeAr: "🔥 خدمة التوصيل السريع داخل العاصمة صنعاء خلال 45 دقيقة - الدفع عند الاستلام أو عبر حاسب / الكريمي",
-  topBannerNoticeEn: "🔥 Express delivery within Sanaa in 45 mins - Cash on delivery & Bank transfers",
-  whatsappPhone: "775000150",
-  callPhone: "01400100",
-  freeDeliveryThreshold: 8000,
-  isStoreOpen: true,
-  defaultCouponCode: "GOLD10",
-  contactEmail: "blackgoled.ye@gmail.com"
-};
+// In-memory cache synced with JSON file
+class Database {
+  private data: DatabaseSchema;
+  private saveTimeout: NodeJS.Timeout | null = null;
 
+  constructor() {
+    this.data = this.load();
+  }
+
+  private load(): DatabaseSchema {
+    try {
+      const dataDir = path.dirname(DB_FILE_PATH);
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+
+      if (fs.existsSync(DB_FILE_PATH)) {
+        const raw = fs.readFileSync(DB_FILE_PATH, 'utf-8');
+        const parsed = JSON.parse(raw);
+        return {
+          users: parsed.users || DEFAULT_USERS,
+          products: parsed.products || DEFAULT_PRODUCTS,
+          orders: parsed.orders || DEFAULT_ORDERS,
+          reviews: parsed.reviews || DEFAULT_REVIEWS,
+          coupons: parsed.coupons || DEFAULT_COUPONS,
+          deliveryAgents: parsed.deliveryAgents || DEFAULT_AGENTS,
+          storeSettings: parsed.storeSettings || DEFAULT_SETTINGS,
+          galleryItems: parsed.galleryItems || DEFAULT_GALLERY,
+          inventoryTransactions: parsed.inventoryTransactions || [],
+          abandonedCarts: parsed.abandonedCarts || [],
+          analyticsEvents: parsed.analyticsEvents || []
+        };
+      }
+    } catch (e) {
+      console.error('Error loading db.json, using defaults:', e);
+    }
+
+    return {
+      users: DEFAULT_USERS,
+      products: DEFAULT_PRODUCTS,
+      orders: DEFAULT_ORDERS,
+      reviews: DEFAULT_REVIEWS,
+      coupons: DEFAULT_COUPONS,
+      deliveryAgents: DEFAULT_AGENTS,
+      storeSettings: DEFAULT_SETTINGS,
+      galleryItems: DEFAULT_GALLERY,
+      inventoryTransactions: [],
+      abandonedCarts: [],
+      analyticsEvents: []
+    };
+  }
+
+  public save(): void {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+    this.saveTimeout = setTimeout(() => {
+      try {
+        const dataDir = path.dirname(DB_FILE_PATH);
+        if (!fs.existsSync(dataDir)) {
+          fs.mkdirSync(dataDir, { recursive: true });
+        }
+        fs.writeFileSync(DB_FILE_PATH, JSON.stringify(this.data, null, 2), 'utf-8');
+      } catch (e) {
+        console.error('Failed to save db.json:', e);
+      }
+    }, 100);
+  }
+
+  // Users
+  public getUsers() { return this.data.users; }
+  public findUserById(id: string) { return this.data.users.find(u => u.id === id); }
+  public findUserByPhone(phone: string) { return this.data.users.find(u => u.phone.replace(/\D/g, '') === phone.replace(/\D/g, '')); }
+  public addUser(user: UserAccount) {
+    this.data.users.push(user);
+    this.save();
+    return user;
+  }
+  public updateUser(id: string, updates: Partial<UserAccount>) {
+    const idx = this.data.users.findIndex(u => u.id === id);
+    if (idx !== -1) {
+      this.data.users[idx] = { ...this.data.users[idx], ...updates };
+      this.save();
+      return this.data.users[idx];
+    }
+    return null;
+  }
+
+  // Products
+  public getProducts() { return this.data.products; }
+  public findProductById(id: string) { return this.data.products.find(p => p.id === id); }
+  public addProduct(p: Product) {
+    this.data.products.unshift(p);
+    // Log initial inventory
+    this.logInventoryTransaction({
+      id: 'tx-' + Date.now(),
+      productId: p.id,
+      productName: p.nameAr,
+      type: 'initial',
+      quantity: p.stock || 0,
+      previousStock: 0,
+      newStock: p.stock || 0,
+      reason: 'إضافة منتج جديد للمتجر',
+      performedBy: 'الإدارة',
+      date: new Date().toISOString()
+    });
+    this.save();
+    return p;
+  }
+  public updateProduct(id: string, p: Partial<Product>) {
+    const idx = this.data.products.findIndex(prod => prod.id === id);
+    if (idx !== -1) {
+      const oldStock = this.data.products[idx].stock;
+      this.data.products[idx] = { ...this.data.products[idx], ...p };
+      if (p.stock !== undefined && p.stock !== oldStock) {
+        this.logInventoryTransaction({
+          id: 'tx-' + Date.now(),
+          productId: id,
+          productName: this.data.products[idx].nameAr,
+          type: 'adjustment',
+          quantity: p.stock - oldStock,
+          previousStock: oldStock,
+          newStock: p.stock,
+          reason: 'تعديل يدوي للمخزون من لوحة التحكم',
+          performedBy: 'الإدارة',
+          date: new Date().toISOString()
+        });
+      }
+      this.save();
+      return this.data.products[idx];
+    }
+    return null;
+  }
+  public deleteProduct(id: string) {
+    this.data.products = this.data.products.filter(p => p.id !== id);
+    this.save();
+    return true;
+  }
+
+  // Orders
+  public getOrders() { return this.data.orders; }
+  public findOrderById(id: string) { return this.data.orders.find(o => o.id === id); }
+  public addOrder(order: Order) {
+    this.data.orders.unshift(order);
+    this.save();
+    return order;
+  }
+  public updateOrderStatus(id: string, status: Order['status'], driverNotes?: string, updatedTimelineStep?: any) {
+    const order = this.data.orders.find(o => o.id === id);
+    if (!order) return null;
+    order.status = status;
+    if (driverNotes) order.driverNotes = driverNotes;
+    if (updatedTimelineStep) {
+      order.timeline.push(updatedTimelineStep);
+    }
+    this.save();
+    return order;
+  }
+  public updateOrderDriver(id: string, driverId: string, driverName: string, driverPhone: string) {
+    const order = this.data.orders.find(o => o.id === id);
+    if (!order) return null;
+    order.driverId = driverId;
+    order.driverName = driverName;
+    order.driverPhone = driverPhone;
+    this.save();
+    return order;
+  }
+
+  // Reviews
+  public getReviews() { return this.data.reviews; }
+  public addReview(review: Review) {
+    this.data.reviews.unshift(review);
+    // recalculate rating for product
+    const prodReviews = this.data.reviews.filter(r => r.productId === review.productId);
+    const avg = prodReviews.reduce((sum, r) => sum + r.rating, 0) / prodReviews.length;
+    const prod = this.findProductById(review.productId);
+    if (prod) {
+      prod.rating = Number(avg.toFixed(1));
+      prod.reviewCount = prodReviews.length;
+    }
+    this.save();
+    return review;
+  }
+
+  // Coupons
+  public getCoupons() { return this.data.coupons; }
+  public findCoupon(code: string) {
+    return this.data.coupons.find(c => c.code.toUpperCase() === code.trim().toUpperCase() && c.isActive);
+  }
+  public addCoupon(coupon: Coupon) {
+    this.data.coupons.unshift(coupon);
+    this.save();
+    return coupon;
+  }
+  public deleteCoupon(code: string) {
+    this.data.coupons = this.data.coupons.filter(c => c.code.toUpperCase() !== code.toUpperCase());
+    this.save();
+    return true;
+  }
+
+  // Delivery Agents
+  public getDeliveryAgents() { return this.data.deliveryAgents; }
+  public updateDeliveryAgents(agents: DeliveryAgent[]) {
+    this.data.deliveryAgents = agents;
+    this.save();
+    return agents;
+  }
+
+  // Settings
+  public getSettings() { return this.data.storeSettings; }
+  public updateSettings(settings: Partial<StoreSettings>) {
+    this.data.storeSettings = { ...this.data.storeSettings, ...settings };
+    this.save();
+    return this.data.storeSettings;
+  }
+
+  // Gallery
+  public getGalleryItems() { return this.data.galleryItems; }
+  public addGalleryItem(item: GalleryItem) {
+    this.data.galleryItems.unshift(item);
+    this.save();
+    return item;
+  }
+  public updateGalleryItem(id: string, updates: Partial<GalleryItem>) {
+    const idx = this.data.galleryItems.findIndex(g => g.id === id);
+    if (idx !== -1) {
+      this.data.galleryItems[idx] = { ...this.data.galleryItems[idx], ...updates };
+      this.save();
+      return this.data.galleryItems[idx];
+    }
+    return null;
+  }
+  public deleteGalleryItem(id: string) {
+    this.data.galleryItems = this.data.galleryItems.filter(g => g.id !== id);
+    this.save();
+    return true;
+  }
+
+  // Inventory Transactions
+  public getInventoryTransactions() { return this.data.inventoryTransactions; }
+  public logInventoryTransaction(tx: InventoryTransaction) {
+    this.data.inventoryTransactions.unshift(tx);
+    this.save();
+    return tx;
+  }
+
+  // Analytics & Abandoned Carts
+  public logAnalyticsEvent(event: string, data: any, userId?: string) {
+    this.data.analyticsEvents.unshift({
+      id: 'ev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      event,
+      data,
+      timestamp: new Date().toISOString(),
+      userId
+    });
+    if (this.data.analyticsEvents.length > 500) {
+      this.data.analyticsEvents = this.data.analyticsEvents.slice(0, 500);
+    }
+    this.save();
+  }
+
+  public logAbandonedCart(cart: { customerPhone?: string; customerName?: string; items: any[]; subtotal: number }) {
+    const id = 'cart-' + Date.now();
+    this.data.abandonedCarts.unshift({
+      id,
+      ...cart,
+      updatedAt: new Date().toISOString()
+    });
+    if (this.data.abandonedCarts.length > 100) {
+      this.data.abandonedCarts = this.data.abandonedCarts.slice(0, 100);
+    }
+    this.save();
+  }
+
+  // Check if a customer has a verified delivered order for a product
+  public hasDeliveredOrderForProduct(customerPhone: string, productId: string): boolean {
+    if (!customerPhone) return false;
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    return this.data.orders.some(order => {
+      const orderPhone = order.customerPhone?.replace(/\D/g, '');
+      const isMatchPhone = orderPhone === cleanPhone;
+      const isDelivered = order.status === 'delivered';
+      const hasProduct = order.items.some(it => it.productId === productId);
+      return isMatchPhone && isDelivered && hasProduct;
+    });
+  }
+}
+
+export const db = new Database();

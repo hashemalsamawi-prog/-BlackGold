@@ -17,9 +17,11 @@ import {
   UserCheck,
   CheckCircle2,
   HelpCircle,
-  Store
+  Store,
+  Loader2
 } from 'lucide-react';
 import { safeGetLocalStorage, safeSetLocalStorage, safeRemoveLocalStorage } from '../utils/storage';
+import { api, authStorage } from '../services/api';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -50,8 +52,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [customerName, setCustomerName] = useState(() => safeGetLocalStorage('bg_customer_name', ''));
   const [customerPhone, setCustomerPhone] = useState(() => safeGetLocalStorage('bg_customer_phone', ''));
   const [ownerPin, setOwnerPin] = useState('');
-  const [pinError, setPinError] = useState(false);
-  const [phoneError, setPhoneError] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSuccessAnim, setIsSuccessAnim] = useState(false);
 
   // Handle ESC key
@@ -68,9 +71,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Reset errors on open
   useEffect(() => {
     if (isOpen) {
-      setPinError(false);
-      setPhoneError(false);
+      setPinError(null);
+      setPhoneError(null);
       setIsSuccessAnim(false);
+      setIsLoading(false);
       const savedName = safeGetLocalStorage('bg_customer_name', '');
       const savedPhone = safeGetLocalStorage('bg_customer_phone', '');
       if (savedName) setCustomerName(savedName);
@@ -92,68 +96,105 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const carrier = getCarrierBadge(customerPhone);
 
-  // 1. Easy Quick Phone Login (Saves Profile & Addresses)
-  const handlePhoneLogin = (e: React.FormEvent) => {
+  // 1. Easy Quick Phone Login (Server-Side Authenticated)
+  const handlePhoneLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerPhone.trim() || customerPhone.replace(/\D/g, '').length < 6) {
-      setPhoneError(true);
+      setPhoneError('يرجى كتابة رقم هاتف يمني صحيح للتواصل وتأكيد التوصيل');
       return;
     }
-    setPhoneError(false);
-    setIsSuccessAnim(true);
+    setPhoneError(null);
+    setIsLoading(true);
 
-    const displayName = customerName.trim() || `عميل الذهب الأسود (${customerPhone.slice(-4)})`;
-    safeSetLocalStorage('bg_customer_name', displayName);
-    safeSetLocalStorage('bg_customer_phone', customerPhone.trim());
-    safeSetLocalStorage('bg_user_role', 'customer');
+    try {
+      const res = await api.quickCustomerLogin(customerPhone.trim(), customerName.trim());
+      if (res.token) {
+        authStorage.setToken(res.token);
+      }
+      safeSetLocalStorage('bg_customer_name', res.user.name);
+      safeSetLocalStorage('bg_customer_phone', res.user.phone);
+      safeSetLocalStorage('bg_user_role', 'customer');
 
-    setTimeout(() => {
-      onLoginSuccess(displayName, customerPhone.trim(), 'customer');
-      setIsSuccessAnim(false);
-      onClose();
-    }, 300);
+      setIsSuccessAnim(true);
+      setTimeout(() => {
+        onLoginSuccess(res.user.name, res.user.phone, 'customer');
+        setIsSuccessAnim(false);
+        setIsLoading(false);
+        onClose();
+      }, 300);
+    } catch (err: any) {
+      setIsLoading(false);
+      setPhoneError(err.message || 'فشل تسجيل الدخول برقم الهاتف');
+    }
   };
 
-  // 2. Google Login
-  const handleGoogleLogin = () => {
-    setIsSuccessAnim(true);
-    const googleName = customerName.trim() || 'عميل الذهب الأسود (Google)';
-    safeSetLocalStorage('bg_customer_name', googleName);
-    safeSetLocalStorage('bg_user_role', 'customer');
-    setTimeout(() => {
-      onLoginSuccess(googleName, customerPhone || '770000000', 'customer');
-      setIsSuccessAnim(false);
-      onClose();
-    }, 300);
+  // 2. Google Login Simulation with Server Registration
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    try {
+      const googleName = customerName.trim() || 'عميل الذهب الأسود (Google)';
+      const googlePhone = customerPhone.trim() || '770000000';
+      const res = await api.quickCustomerLogin(googlePhone, googleName);
+      if (res.token) {
+        authStorage.setToken(res.token);
+      }
+      safeSetLocalStorage('bg_customer_name', res.user.name);
+      safeSetLocalStorage('bg_user_role', 'customer');
+
+      setIsSuccessAnim(true);
+      setTimeout(() => {
+        onLoginSuccess(res.user.name, res.user.phone, 'customer');
+        setIsSuccessAnim(false);
+        setIsLoading(false);
+        onClose();
+      }, 300);
+    } catch (err: any) {
+      setIsLoading(false);
+      setPhoneError(err.message || 'فشل تسجيل الدخول');
+    }
   };
 
   // 3. Guest Mode Continue
   const handleGuestContinue = () => {
-    // Keep user as guest without forcing stored credentials
     onClose();
   };
 
-  // 4. Owner PIN Authentication
-  const handleOwnerPinSubmit = (e: React.FormEvent) => {
+  // 4. Owner / Admin PIN Authentication (Server-Side Verified)
+  const handleOwnerPinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (ownerPin === '7777') {
-      setPinError(false);
+    if (!ownerPin.trim()) {
+      setPinError('يرجى إدخال رمز PIN للمالك');
+      return;
+    }
+    setPinError(null);
+    setIsLoading(true);
+
+    try {
+      const res = await api.adminLogin({ pin: ownerPin.trim() });
+      if (res.token) {
+        authStorage.setToken(res.token);
+      }
+      safeSetLocalStorage('bg_customer_name', res.user.name);
+      safeSetLocalStorage('bg_customer_phone', res.user.phone);
+      safeSetLocalStorage('bg_user_role', res.user.role || 'owner');
+
       setIsSuccessAnim(true);
-      safeSetLocalStorage('bg_customer_name', 'هاشم السماوي (المالك)');
-      safeSetLocalStorage('bg_user_role', 'owner');
       setTimeout(() => {
-        onLoginSuccess('هاشم السماوي (المالك)', '775000150', 'owner');
+        onLoginSuccess(res.user.name, res.user.phone, (res.user.role as any) || 'owner');
         setIsSuccessAnim(false);
+        setIsLoading(false);
         onClose();
         if (onOpenAdmin) onOpenAdmin();
       }, 300);
-    } else {
-      setPinError(true);
+    } catch (err: any) {
+      setIsLoading(false);
+      setPinError(err.message || 'رمز المرور غير صحيح. الرمز الافتراضي للمالك هو: 7777');
     }
   };
 
   // 5. Logout
   const handleLogoutClick = () => {
+    authStorage.removeToken();
     safeRemoveLocalStorage('bg_customer_name');
     safeRemoveLocalStorage('bg_customer_phone');
     safeRemoveLocalStorage('bg_user_role');
@@ -235,7 +276,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
-                          مسجل نشط ⭐
+                          جلسة موثقة ⭐
                         </span>
                       )}
                     </div>
@@ -389,13 +430,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             )}
 
-            {/* TAB 2: QUICK PHONE LOGIN (SAVES ADDRESSES & NAME) */}
+            {/* TAB 2: QUICK PHONE LOGIN (SERVER VERIFIED) */}
             {authTab === 'quick_phone' && (
               <div className="space-y-3.5 animate-in fade-in duration-200">
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-3 text-xs text-amber-300 flex items-center gap-2.5">
                   <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
                   <p className="leading-relaxed text-[11px]">
-                    سجل رقمك لحفظ عناوينك الدائمة في صنعاء وتتبع طلباتك السابقة بسهولة بدون كلمات مرور! 🔥
+                    سجل رقمك لحفظ عناوينك الدائمة في صنعاء وتتبع طلباتك السابقة بجلسة آمنة وموثوقة! 🔥
                   </p>
                 </div>
 
@@ -435,7 +476,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         value={customerPhone}
                         onChange={(e) => {
                           setCustomerPhone(e.target.value);
-                          if (phoneError) setPhoneError(false);
+                          if (phoneError) setPhoneError(null);
                         }}
                         dir="ltr"
                         className={`w-full bg-slate-900 border text-white py-2.5 px-9 rounded-xl outline-none transition-colors text-right font-mono font-bold ${
@@ -447,17 +488,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     {phoneError && (
                       <p className="text-[11px] text-red-400 mt-1 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3" />
-                        <span>يرجى كتابة رقم هاتف يمني صحيح للتواصل وتأكيد التوصيل</span>
+                        <span>{phoneError}</span>
                       </p>
                     )}
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full py-3 rounded-xl gold-gradient-bg text-slate-950 font-black hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer mt-1"
+                    disabled={isLoading}
+                    className="w-full py-3 rounded-xl gold-gradient-bg text-slate-950 font-black hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer mt-1 disabled:opacity-50"
                   >
-                    <LogIn className="w-4 h-4 fill-slate-950" />
-                    <span>دخول وحفظ الملف ومتابعة التسوق ⚡</span>
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                    ) : (
+                      <>
+                        <LogIn className="w-4 h-4 fill-slate-950" />
+                        <span>دخول وتوثيق الحساب ومتابعة التسوق ⚡</span>
+                      </>
+                    )}
                   </button>
                 </form>
 
@@ -470,6 +518,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
+                  disabled={isLoading}
                   className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -492,15 +541,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             )}
 
-            {/* TAB 3: OWNER / MANAGER ACCESS (PIN PROTECTED) */}
+            {/* TAB 3: OWNER / MANAGER ACCESS (PIN VERIFIED VIA BACKEND) */}
             {authTab === 'owner_pin' && (
               <div className="space-y-3.5 animate-in fade-in duration-200">
                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 text-xs text-amber-300 flex items-start gap-2.5">
                   <KeyRound className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-black text-white">بوابة إدارة المالك الخاصة</h4>
+                    <h4 className="font-black text-white">بوابة إدارة المالك الموثقة</h4>
                     <p className="text-[11px] text-amber-300/80 mt-0.5">
-                      مخصصة للمدير (هاشم السماوي) للتحكم بالأسعار والمخزون والمناديب. الرمز الافتراضي: <strong className="text-amber-400 font-mono">7777</strong>
+                      مخصصة للمالك (هاشم السماوي) والإدارة للتحكم بالأسعار والمخزون والمناديب. الرمز الافتراضي: <strong className="text-amber-400 font-mono">7777</strong>
                     </p>
                   </div>
                 </div>
@@ -518,7 +567,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         value={ownerPin}
                         onChange={(e) => {
                           setOwnerPin(e.target.value);
-                          if (pinError) setPinError(false);
+                          if (pinError) setPinError(null);
                         }}
                         dir="ltr"
                         className={`w-full bg-slate-900 border text-white py-2.5 px-9 rounded-xl outline-none text-center font-mono text-base tracking-widest transition-colors ${
@@ -530,17 +579,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     {pinError && (
                       <p className="text-[11px] text-red-400 mt-1 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3" />
-                        <span>رمز PIN غير صحيح. يرجى تجربة 7777</span>
+                        <span>{pinError}</span>
                       </p>
                     )}
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer"
+                    disabled={isLoading}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50"
                   >
-                    <ShieldCheck className="w-4 h-4 fill-slate-950" />
-                    <span>تأكيد والدخول للوحة المالك 👑</span>
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4 fill-slate-950" />
+                        <span>تأكيد والتحقق من صلاحية المالك 👑</span>
+                      </>
+                    )}
                   </button>
                 </form>
               </div>
